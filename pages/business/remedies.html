@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>补救方案管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="../../assets/js/config.js"></script>
+    <script src="../../assets/js/utils.js"></script>
+    <script src="../../assets/js/api.js"></script>
+</head>
+<body class="bg-transparent p-2 sm:p-6 text-gray-800 font-sans" x-data="remediesApp()" x-init="initData()">
+
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 gap-4 border-b border-gray-200 pb-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight flex items-center">
+                <i data-lucide="life-buoy" class="w-6 h-6 mr-2 text-rose-500"></i>
+                健康补救方案
+            </h1>
+            <p class="text-sm text-gray-500 mt-1">配置用户触发负面健康行为 (如熬夜、暴饮暴食) 时的补救任务规则。</p>
+        </div>
+        <button @click="openModal()" class="flex items-center px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-medium transition-all shadow-lg shadow-rose-500/30">
+            <i data-lucide="plus" class="w-4 h-4 mr-1.5"></i>新增方案
+        </button>
+    </div>
+
+    <div class="flex flex-col sm:flex-row gap-4 mb-6">
+        <select x-model="searchScenario" @change="fetchData()"
+            class="w-full sm:w-64 px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none transition-all shadow-sm text-sm appearance-none cursor-pointer">
+            <option value="">所有触发场景</option>
+            <option value="overeat">暴饮暴食 (Overeat)</option>
+            <option value="stay_up">熬夜 (Stay Up)</option>
+            <option value="miss_workout">缺乏运动 (Miss Workout)</option>
+            <option value="low_water">饮水不足 (Low Water)</option>
+        </select>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100/80 overflow-hidden relative">
+        <div x-show="loading" class="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex justify-center items-center">
+            <i data-lucide="loader-2" class="w-8 h-8 animate-spin text-rose-500"></i>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50/50 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-100">
+                        <th class="px-6 py-4 font-semibold w-24">排序</th>
+                        <th class="px-6 py-4 font-semibold">触发场景</th>
+                        <th class="px-6 py-4 font-semibold">方案标题与描述</th>
+                        <th class="px-6 py-4 font-semibold text-right">操作</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    <template x-for="item in remedies" :key="item.id">
+                        <tr class="hover:bg-gray-50/50 transition-colors group">
+                            <td class="px-6 py-4">
+                                <span class="px-2.5 py-1 bg-gray-100 text-gray-500 font-mono text-xs rounded-md border border-gray-200" x-text="'#' + item.order"></span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border"
+                                      :class="{
+                                          'bg-orange-50 text-orange-600 border-orange-200': item.scenario === 'overeat',
+                                          'bg-indigo-50 text-indigo-600 border-indigo-200': item.scenario === 'stay_up',
+                                          'bg-gray-50 text-gray-600 border-gray-200': !['overeat', 'stay_up'].includes(item.scenario)
+                                      }" x-text="getScenarioName(item.scenario)">
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-sm font-bold text-gray-900" x-text="item.title || item.name || '未命名方案'"></div>
+                                <div class="text-xs text-gray-500 mt-1 max-w-md truncate" x-text="item.description || item.content || '无详细描述'"></div>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <button @click="openModal(item)" class="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors mr-1">
+                                    <i data-lucide="edit-3" class="w-4 h-4"></i>
+                                </button>
+                                <button @click="deleteItem(item.id)" class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr x-show="!loading && remedies.length === 0">
+                        <td colspan="4" class="px-6 py-12 text-center text-gray-500 text-sm">暂无该场景的补救方案记录</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div x-show="isModalOpen" style="display: none;" class="fixed inset-0 z-50 flex items-center justify-center pointer-events-auto">
+        <div x-show="isModalOpen" x-transition.opacity class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm" @click="closeModal()"></div>
+        
+        <div x-show="isModalOpen" x-transition class="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg mx-4 flex flex-col overflow-hidden">
+            <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <h3 class="text-lg font-bold text-gray-900" x-text="isEditing ? '编辑方案' : '新增补救方案'"></h3>
+                <button @click="closeModal()" class="text-gray-400 hover:text-gray-600 p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <form @submit.prevent="submitForm" class="p-6 space-y-5 flex-1 overflow-y-auto max-h-[70vh]">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">触发场景 *</label>
+                        <select x-model="formData.scenario" required class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 text-sm appearance-none">
+                            <option value="overeat">暴饮暴食</option>
+                            <option value="stay_up">熬夜</option>
+                            <option value="miss_workout">缺乏运动</option>
+                            <option value="low_water">饮水不足</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">展示排序 (越小越靠前) *</label>
+                        <input type="number" x-model.number="formData.order" required min="1" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">方案标题 *</label>
+                    <input type="text" x-model="formData.title" required class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">详细执行内容</label>
+                    <textarea x-model="formData.description" rows="3" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 text-sm resize-none"></textarea>
+                </div>
+            </form>
+
+            <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-white">
+                <button type="button" @click="closeModal()" class="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">取消</button>
+                <button type="button" @click="submitForm()" :disabled="submitting" class="px-5 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-medium shadow-md flex items-center disabled:opacity-70">
+                    <i data-lucide="loader-2" x-show="submitting" class="w-4 h-4 mr-2 animate-spin"></i>
+                    <span x-text="isEditing ? '保存修改' : '确认创建'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function remediesApp() {
+            return {
+                remedies: [],
+                loading: true,
+                searchScenario: '',
+                isModalOpen: false,
+                isEditing: false,
+                submitting: false,
+                formData: { id: null, scenario: 'overeat', order: 1, title: '', description: '' },
+
+                async initData() { await this.fetchData(); },
+
+                async fetchData() {
+                    this.loading = true;
+                    try {
+                        // 确保你的 api.js 中有 window.API.getRemedies(scenario)
+                        const res = await window.API.getRemedies(this.searchScenario);
+                        this.remedies = res.results || res || [];
+                    } catch (e) { console.error('获取失败', e); } 
+                    finally {
+                        this.loading = false;
+                        this.$nextTick(() => lucide.createIcons());
+                    }
+                },
+
+                getScenarioName(key) {
+                    const map = { 'overeat': '暴饮暴食', 'stay_up': '熬夜', 'miss_workout': '缺乏运动', 'low_water': '饮水不足' };
+                    return map[key] || key;
+                },
+
+                openModal(item = null) {
+                    if (item) {
+                        this.isEditing = true;
+                        this.formData = { 
+                            id: item.id, scenario: item.scenario, order: item.order, 
+                            title: item.title || item.name, description: item.description || item.content 
+                        };
+                    } else {
+                        this.isEditing = false;
+                        this.formData = { id: null, scenario: 'overeat', order: 1, title: '', description: '' };
+                    }
+                    this.isModalOpen = true;
+                },
+                
+                closeModal() { this.isModalOpen = false; this.submitting = false; },
+
+                async submitForm() {
+                    if(!this.formData.title) return alert("请填写方案标题");
+                    this.submitting = true;
+                    try {
+                        if (this.isEditing) await window.API.updateRemedy(this.formData.id, this.formData);
+                        else await window.API.createRemedy(this.formData);
+                        this.closeModal();
+                        await this.fetchData();
+                    } catch (e) { alert('操作失败'); this.submitting = false; }
+                },
+
+                async deleteItem(id) {
+                    if(!confirm("确定要删除该补救方案吗？")) return;
+                    try {
+                        await window.API.deleteRemedy(id);
+                        await this.fetchData();
+                    } catch (e) { alert("删除失败"); }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

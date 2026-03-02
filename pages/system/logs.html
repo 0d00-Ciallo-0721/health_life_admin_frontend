@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>操作日志</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="../../assets/js/api.js"></script>
+</head>
+<body class="bg-transparent p-2 sm:p-6 text-gray-800 font-sans" x-data="logsApp()" x-init="initLogs()">
+
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-gray-200 pb-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight">操作审计日志</h1>
+            <p class="text-sm text-gray-500 mt-1">系统所有敏感操作的监控记录，保证系统安全可追溯。</p>
+        </div>
+        <button @click="fetchLogs()" class="flex items-center px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors shadow-sm">
+            <i data-lucide="refresh-cw" class="w-4 h-4 mr-2" :class="loading ? 'animate-spin' : ''"></i>刷新
+        </button>
+    </div>
+
+    <div class="flex flex-col sm:flex-row gap-4 mb-6">
+        <div class="relative w-full sm:w-64">
+            <i data-lucide="user" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+            <input type="text" x-model="searchOperator" @keyup.debounce.500ms="fetchLogs()"
+                class="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none transition-all shadow-sm text-sm"
+                placeholder="按操作人搜索...">
+        </div>
+        <div class="relative w-full sm:w-64">
+            <i data-lucide="layers" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+            <input type="text" x-model="searchModule" @keyup.debounce.500ms="fetchLogs()"
+                class="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none transition-all shadow-sm text-sm"
+                placeholder="按模块搜索 (如 business:user)...">
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100/80 overflow-hidden relative">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50/50 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-100">
+                        <th class="px-6 py-4 font-semibold">操作人</th>
+                        <th class="px-6 py-4 font-semibold">操作模块</th>
+                        <th class="px-6 py-4 font-semibold">IP 地址</th>
+                        <th class="px-6 py-4 font-semibold">请求路径</th>
+                        <th class="px-6 py-4 font-semibold">操作时间</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    <template x-for="log in logs" :key="log.id">
+                        <tr class="hover:bg-gray-50/50 transition-colors">
+                            <td class="px-6 py-4">
+                                <span class="font-medium text-gray-900" x-text="log.operator_name || 'System'"></span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-md text-xs border border-gray-200" x-text="log.module"></span>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-500 font-mono" x-text="log.ip_address"></td>
+                            <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" x-text="log.request_path" :title="log.request_path"></td>
+                            <td class="px-6 py-4 text-sm text-gray-500" x-text="formatDate(log.created_at)"></td>
+                        </tr>
+                    </template>
+                    <tr x-show="!loading && logs.length === 0">
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500 text-sm">暂无审计日志</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function logsApp() {
+            return {
+                logs: [],
+                loading: true,
+                searchOperator: '',
+                searchModule: '',
+
+                async initLogs() {
+                    await this.fetchLogs();
+                },
+
+                async fetchLogs() {
+                    this.loading = true;
+                    try {
+                        const res = await window.API.getLogs(this.searchOperator, this.searchModule);
+                        this.logs = res.results || res || [];
+                    } catch (error) {
+                        console.error('Failed to load logs', error);
+                    } finally {
+                        this.loading = false;
+                        this.$nextTick(() => lucide.createIcons());
+                    }
+                },
+
+                formatDate(dateStr) {
+                    if(!dateStr) return '';
+                    const d = new Date(dateStr);
+                    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

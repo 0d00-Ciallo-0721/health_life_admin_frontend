@@ -102,4 +102,24 @@ window.API = {
     getConfigs: () => request('/system/configs/'),
     // ... 可以根据需要补齐角色和菜单的 CRUD
 
+// --- 补充的业务管理接口 ---
+    // 商家管理
+    getRestaurants: (search = '') => request(`/business/restaurants/?search=${encodeURIComponent(search)}`),
+    createRestaurant: (data) => request('/business/restaurants/', { method: 'POST', body: JSON.stringify(data) }),
+    updateRestaurant: (id, data) => request(`/business/restaurants/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteRestaurant: (id) => request(`/business/restaurants/${id}/`, { method: 'DELETE' }),
+
+    // 补救方案管理
+    getRemedies: (scenario = '') => request(`/business/remedies/?scenario=${encodeURIComponent(scenario)}`),
+    
+    // --- 补充的系统管理接口 ---
+    // 系统配置 CRUD
+    getConfigs: () => request('/system/configs/'),
+    createConfig: (data) => request('/system/configs/', { method: 'POST', body: JSON.stringify(data) }),
+    updateConfig: (id, data) => request(`/system/configs/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteConfig: (id) => request(`/system/configs/${id}/`, { method: 'DELETE' }),
+    
+    // 角色与菜单 (预留)
+    getRoles: () => request('/system/roles/'),
+
 };
