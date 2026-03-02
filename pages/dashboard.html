@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="../assets/js/api.js"></script>
+
+    <style>
+        /* 隐藏滚动条但保持可滚动 */
+        body { scrollbar-width: none; -ms-overflow-style: none; }
+        body::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-transparent p-2 sm:p-6 text-gray-800 font-sans" x-data="dashboardApp()" x-init="initDashboard()">
+
+    <div x-show="loading" class="flex justify-center items-center h-64">
+        <i data-lucide="loader-2" class="w-8 h-8 animate-spin text-teal-500"></i>
+    </div>
+
+    <div x-show="!loading" style="display: none;" x-transition.opacity.duration.500ms>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <template x-for="(card, index) in summaryData.cards" :key="index">
+                <div class="bg-white rounded-2xl p-6 shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-gray-100/80 hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group">
+                    
+                    <div class="absolute -right-6 -top-6 w-24 h-24 rounded-full transition-transform duration-500 group-hover:scale-150 opacity-10"
+                         :class="{
+                            'bg-blue-500': card.icon === 'User',
+                            'bg-orange-500': card.icon === 'Dish',
+                            'bg-teal-500': card.icon === 'DataLine'
+                         }"></div>
+
+                    <div class="relative z-10 flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-medium text-gray-400 mb-1" x-text="card.title"></p>
+                            <h3 class="text-3xl font-extrabold text-gray-800 tracking-tight" x-text="card.value"></h3>
+                        </div>
+                        
+                        <div class="p-3 rounded-xl"
+                             :class="{
+                                'bg-blue-50 text-blue-500': card.icon === 'User',
+                                'bg-orange-50 text-orange-500': card.icon === 'Dish',
+                                'bg-teal-50 text-teal-500': card.icon === 'DataLine'
+                             }">
+                            <template x-if="card.icon === 'User'"><i data-lucide="users" class="w-6 h-6"></i></template>
+                            <template x-if="card.icon === 'Dish'"><i data-lucide="utensils-crossed" class="w-6 h-6"></i></template>
+                            <template x-if="card.icon === 'DataLine'"><i data-lucide="activity" class="w-6 h-6"></i></template>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-gray-50 flex items-center text-sm relative z-10">
+                        <template x-if="card.today_added !== undefined">
+                            <div class="flex items-center text-gray-500">
+                                <span class="text-emerald-500 flex items-center font-medium mr-2">
+                                    <i data-lucide="trending-up" class="w-4 h-4 mr-1"></i>
+                                    +<span x-text="card.today_added"></span>
+                                </span>
+                                今日新增
+                            </div>
+                        </template>
+                        <template x-if="card.action_needed !== undefined">
+                            <div class="flex items-center text-gray-500">
+                                <span class="text-amber-500 flex items-center font-medium mr-2" :class="{'text-amber-500': card.action_needed > 0, 'text-gray-400': card.action_needed === 0}">
+                                    <i data-lucide="alert-circle" class="w-4 h-4 mr-1"></i>
+                                    <span x-text="card.action_needed"></span>
+                                </span>
+                                待审核
+                            </div>
+                        </template>
+                        <template x-if="card.today_added === undefined && card.action_needed === undefined">
+                            <div class="text-gray-400 flex items-center">
+                                <i data-lucide="check-circle-2" class="w-4 h-4 mr-1"></i> 实时更新
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-gray-100/80">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-800">近7日活跃趋势</h2>
+                    <p class="text-sm text-gray-400 mt-1">系统每日打卡记录总数</p>
+                </div>
+                <button class="p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors">
+                    <i data-lucide="download" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div id="trendChart" class="w-full h-[350px]"></div>
+        </div>
+
+    </div>
+
+    <script>
+        function dashboardApp() {
+            return {
+                loading: true,
+                summaryData: {
+                    cards: [],
+                    trend: []
+                },
+                chartInstance: null,
+
+                async initDashboard() {
+                    try {
+                        // 调用后端 /v1/dashboard/summary/ 接口
+                        const response = await window.API.getDashboard();
+                        this.summaryData = response.data;
+                        
+                        // DOM 更新后初始化图表和图标
+                        this.$nextTick(() => {
+                            lucide.createIcons();
+                            this.renderChart();
+                        });
+                    } catch (error) {
+                        console.error('获取看板数据失败', error);
+                        // 如果后端没通，渲染一点假数据方便预览 UI
+                        this.mockDataForPreview();
+                    } finally {
+                        this.loading = false;
+                    }
+
+                    // 监听窗口大小变化，适配图表大小
+                    window.addEventListener('resize', () => {
+                        if (this.chartInstance) {
+                            this.chartInstance.resize();
+                        }
+                    });
+                },
+
+                renderChart() {
+                    if (!this.summaryData.trend || this.summaryData.trend.length === 0) return;
+
+                    const chartDom = document.getElementById('trendChart');
+                    this.chartInstance = echarts.init(chartDom);
+
+                    const xAxisData = this.summaryData.trend.map(item => item.date);
+                    const seriesData = this.summaryData.trend.map(item => item.value);
+
+                    const option = {
+                        tooltip: {
+                            trigger: 'axis',
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            borderColor: '#eee',
+                            borderWidth: 1,
+                            padding: [10, 15],
+                            textStyle: { color: '#333' },
+                            extraCssText: 'box-shadow: 0 4px 20px rgba(0,0,0,0.05); border-radius: 8px;',
+                            axisPointer: {
+                                type: 'line',
+                                lineStyle: { color: '#cbd5e1', type: 'dashed' }
+                            }
+                        },
+                        grid: {
+                            left: '2%', right: '4%', bottom: '3%', top: '10%',
+                            containLabel: true
+                        },
+                        xAxis: {
+                            type: 'category',
+                            boundaryGap: false,
+                            data: xAxisData,
+                            axisLine: { show: false },
+                            axisTick: { show: false },
+                            axisLabel: { color: '#94a3b8', margin: 15, fontFamily: 'sans-serif' }
+                        },
+                        yAxis: {
+                            type: 'value',
+                            splitLine: {
+                                lineStyle: { color: '#f1f5f9', type: 'dashed' }
+                            },
+                            axisLabel: { color: '#94a3b8', fontFamily: 'sans-serif' }
+                        },
+                        series: [
+                            {
+                                name: '打卡数',
+                                type: 'line',
+                                smooth: true, // 平滑曲线
+                                showSymbol: false,
+                                symbolSize: 8,
+                                itemStyle: {
+                                    color: '#0d9488' // Teal-600
+                                },
+                                lineStyle: {
+                                    width: 3,
+                                    shadowColor: 'rgba(13, 148, 136, 0.2)',
+                                    shadowBlur: 10,
+                                    shadowOffsetY: 5
+                                },
+                                areaStyle: {
+                                    // 渐变填充 (Antigravity 风格)
+                                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                        { offset: 0, color: 'rgba(20, 184, 166, 0.3)' }, // Teal-500 / 30%
+                                        { offset: 1, color: 'rgba(20, 184, 166, 0.0)' }  // 透明
+                                    ])
+                                },
+                                data: seriesData
+                            }
+                        ]
+                    };
+
+                    this.chartInstance.setOption(option);
+                },
+
+                // (备用) 如果未连接后端，自动填充预览数据
+                mockDataForPreview() {
+                    this.summaryData = {
+                        cards: [
+                            { title: "总用户数", value: 12450, today_added: 128, icon: "User" },
+                            { title: "总菜谱数", value: 384, action_needed: 12, icon: "Dish" },
+                            { title: "今日打卡数", value: 8902, icon: "DataLine" }
+                        ],
+                        trend: [
+                            { date: "02-18", value: 7800 }, { date: "02-19", value: 8100 },
+                            { date: "02-20", value: 7950 }, { date: "02-21", value: 8400 },
+                            { date: "02-22", value: 9200 }, { date: "02-23", value: 8700 },
+                            { date: "02-24", value: 8902 }
+                        ]
+                    };
+                    this.$nextTick(() => {
+                        lucide.createIcons();
+                        this.renderChart();
+                    });
+                }
+            }
+        }
+    </script>
+</body>
+</html>

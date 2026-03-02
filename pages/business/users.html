@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="../../assets/js/api.js"></script>
+</head>
+<body class="bg-transparent p-2 sm:p-6 text-gray-800 font-sans" x-data="usersApp()" x-init="initUsers()">
+
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight">用户管理</h1>
+            <p class="text-sm text-gray-500 mt-1">查看和管理平台注册用户，控制账号状态。</p>
+        </div>
+
+        <div class="relative w-full sm:w-72">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+            <input type="text" x-model="searchQuery" @keyup.debounce.500ms="fetchUsers()"
+                class="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all shadow-sm text-sm"
+                placeholder="搜索用户名或昵称...">
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100/80 overflow-hidden relative">
+        
+        <div x-show="loading" class="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex flex-col justify-start">
+            <div class="animate-pulse flex flex-col w-full">
+                <div class="h-14 border-b border-gray-100 bg-gray-50/50"></div>
+                <template x-for="i in 5">
+                    <div class="h-16 border-b border-gray-100 w-full flex items-center px-6">
+                        <div class="w-10 h-10 bg-gray-200 rounded-full mr-4"></div>
+                        <div class="flex-1 space-y-2">
+                            <div class="h-4 bg-gray-200 rounded w-1/4"></div>
+                            <div class="h-3 bg-gray-100 rounded w-1/6"></div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50/50 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-100">
+                        <th class="px-6 py-4 font-semibold">用户信息</th>
+                        <th class="px-6 py-4 font-semibold">角色</th>
+                        <th class="px-6 py-4 font-semibold">加入时间</th>
+                        <th class="px-6 py-4 font-semibold">状态</th>
+                        <th class="px-6 py-4 font-semibold text-right">操作</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    
+                    <template x-for="user in users" :key="user.id">
+                        <tr class="hover:bg-gray-50/50 transition-colors group">
+                            <td class="px-6 py-4">
+                                <div class="flex items-center">
+                                    <img :src="user.avatar || `https://ui-avatars.com/api/?name=${user.username}&background=random`" 
+                                         alt="Avatar" class="w-10 h-10 rounded-full object-cover border border-gray-100 shadow-sm">
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900" x-text="user.nickname || user.username"></div>
+                                        <div class="text-xs text-gray-500 mt-0.5" x-text="'@' + user.username"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            
+                            <td class="px-6 py-4">
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200"
+                                      x-text="user.is_superuser ? '超级管理员' : '普通用户'">
+                                </span>
+                            </td>
+
+                            <td class="px-6 py-4">
+                                <div class="text-sm text-gray-600" x-text="formatDate(user.date_joined)"></div>
+                            </td>
+
+                            <td class="px-6 py-4">
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
+                                      :class="user.is_active 
+                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
+                                        : 'bg-red-50 text-red-600 border-red-200'">
+                                    <span class="w-1.5 h-1.5 rounded-full mr-1.5"
+                                          :class="user.is_active ? 'bg-emerald-500' : 'bg-red-500'"></span>
+                                    <span x-text="user.is_active ? '正常' : '已封禁'"></span>
+                                </span>
+                            </td>
+
+                            <td class="px-6 py-4 text-right">
+                                <template x-if="!user.is_superuser">
+                                    <button @click="toggleStatus(user)"
+                                            class="inline-flex items-center justify-center p-2 rounded-lg transition-colors focus:outline-none"
+                                            :class="user.is_active ? 'text-gray-400 hover:text-red-600 hover:bg-red-50' : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'"
+                                            :title="user.is_active ? '封禁账号' : '解封账号'">
+                                        <i :data-lucide="user.is_active ? 'ban' : 'check-circle'" class="w-4 h-4"></i>
+                                    </button>
+                                </template>
+                            </td>
+                        </tr>
+                    </template>
+
+                    <tr x-show="!loading && users.length === 0">
+                        <td colspan="5" class="px-6 py-16 text-center">
+                            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-50 mb-4">
+                                <i data-lucide="inbox" class="w-8 h-8 text-gray-400"></i>
+                            </div>
+                            <h3 class="text-sm font-medium text-gray-900">未找到用户</h3>
+                            <p class="mt-1 text-sm text-gray-500">尝试调整搜索关键词。</p>
+                        </td>
+                    </tr>
+
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500 bg-gray-50/30">
+            <span>共 <span class="font-medium text-gray-900" x-text="users.length"></span> 条记录</span>
+            <div class="space-x-1">
+                <button class="px-3 py-1 rounded-md bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-50">上一页</button>
+                <button class="px-3 py-1 rounded-md bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-50">下一页</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function usersApp() {
+            return {
+                users: [],
+                loading: true,
+                searchQuery: '',
+
+                async initUsers() {
+                    // 初始化获取数据
+                    await this.fetchUsers();
+                },
+
+                async fetchUsers() {
+                    this.loading = true;
+                    try {
+                        const response = await window.API.getUsers(this.searchQuery);
+                        // 假设 DRF 列表返回格式为 { results: [...] } 或者直接就是数组
+                        this.users = response.results || response || [];
+                    } catch (error) {
+                        console.error('获取用户失败:', error);
+                        alert(error.message || '获取数据失败');
+                    } finally {
+                        this.loading = false;
+                        this.$nextTick(() => lucide.createIcons());
+                    }
+                },
+
+                async toggleStatus(user) {
+                    const action = user.is_active ? '封禁' : '解封';
+                    if (!confirm(`确定要${action}用户 "${user.username}" 吗？`)) return;
+
+                    try {
+                        await window.API.toggleUserStatus(user.id);
+                        // 本地无刷新更新状态
+                        user.is_active = !user.is_active;
+                        // 重新渲染该行图标
+                        this.$nextTick(() => lucide.createIcons());
+                    } catch (error) {
+                        console.error('状态修改失败:', error);
+                        alert(error.message || '操作失败');
+                    }
+                },
+
+                formatDate(dateString) {
+                    if (!dateString) return '-';
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }) + ' ' + 
+                           date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute:'2-digit' });
+                }
+            }
+        }
+    </script>
+</body>
+</html>
