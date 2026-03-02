@@ -31,10 +31,8 @@ async function request(endpoint, options = {}) {
             console.warn('Unauthorized. Redirecting to login...');
             localStorage.removeItem('access_token');
             localStorage.removeItem('user_info');
-            // ❌ 原代码：window.location.href = '/index.html'; 
-            // 如果你的本地服务器没挂载在根目录，这会导致 404
             
-            // ✅ 修改为：
+            // ✅ 重定向逻辑修复
             window.location.href = window.location.origin + '/index.html';
             throw new Error('Unauthorized');
         }
@@ -42,6 +40,27 @@ async function request(endpoint, options = {}) {
         // 统一错误处理
         if (!response.ok) {
             throw new Error(data.msg || data.detail || '请求失败');
+        }
+
+        // --- 🤖 Antigravity 核心修复 V2：安全的数据响应结构归一化 ---
+        if (Array.isArray(data)) {
+            data.data = data;
+            data.results = data;
+            return data;
+        } else if (data !== null && typeof data === 'object') {
+            const normalized = { ...data };
+            
+            // 🚀 修复点：安全补充别名，绝不破坏原有嵌套！
+            // 这样既能兼容 { count, results: [] } 也能兼容 { code: 200, data: {...} }
+            if (normalized.results !== undefined) {
+                if (normalized.data === undefined) normalized.data = normalized.results;
+            } else if (normalized.data !== undefined) {
+                if (normalized.results === undefined) normalized.results = normalized.data;
+            } else {
+                normalized.data = data;
+                normalized.results = data;
+            }
+            return normalized;
         }
 
         return data;
@@ -59,24 +78,19 @@ window.API = {
     }),
     getMenus: () => request('/system/menus/tree/'),
     getDashboard: () => request('/dashboard/summary/'),
-// ... 原有代码保留 (login, getMenus, getDashboard)
 
-    // 追加 4.1 用户管理接口
+    // 用户管理接口
     getUsers: (search = '') => request(`/business/users/?search=${encodeURIComponent(search)}`),
     toggleUserStatus: (userId) => request(`/business/users/${userId}/toggle_status/`, { method: 'POST' }),
 
-// ... 原有代码保留 (login, getMenus, getDashboard, getUsers, toggleUserStatus)
-
-    // 追加 4.2 菜谱审核接口
+    // 菜谱审核接口
     getPendingRecipes: () => request('/business/recipes/'),
     auditRecipe: (recipeId, result) => request(`/business/recipes/${recipeId}/audit/`, {
         method: 'POST',
-        body: JSON.stringify({ result }) // result 必须是 'pass' 或 'reject'
+        body: JSON.stringify({ result })
     }),
 
-// ... 原有代码保留
-
-    // 追加 4.3 挑战任务 CRUD 接口
+    // 挑战任务 CRUD 接口
     getTasks: (search = '', type = '') => {
         let query = `?search=${encodeURIComponent(search)}`;
         if (type) query += `&type=${type}`;
@@ -92,9 +106,7 @@ window.API = {
         method: 'DELETE'
     }),
 
-// ... 原有代码保留 (包含 login, getMenus, getUsers, getTasks 等)
-
-    // 追加 4.4 系统管理接口
+    // 系统操作日志与通知
     getLogs: (operator = '', module = '') => request(`/system/logs/?operator=${encodeURIComponent(operator)}&module=${encodeURIComponent(module)}`),
     getNotifications: () => request('/system/notifications/'),
     createNotification: (data) => request('/system/notifications/', {
@@ -103,10 +115,7 @@ window.API = {
     deleteNotification: (id) => request(`/system/notifications/${id}/`, {
         method: 'DELETE'
     }),
-    getConfigs: () => request('/system/configs/'),
-    // ... 可以根据需要补齐角色和菜单的 CRUD
-
-// --- 补充的业务管理接口 ---
+    
     // 商家管理
     getRestaurants: (search = '') => request(`/business/restaurants/?search=${encodeURIComponent(search)}`),
     createRestaurant: (data) => request('/business/restaurants/', { method: 'POST', body: JSON.stringify(data) }),
@@ -116,27 +125,21 @@ window.API = {
     // 补救方案管理
     getRemedies: (scenario = '') => request(`/business/remedies/?scenario=${encodeURIComponent(scenario)}`),
     
-    // --- 补充的系统管理接口 ---
     // 系统配置 CRUD
     getConfigs: () => request('/system/configs/'),
     createConfig: (data) => request('/system/configs/', { method: 'POST', body: JSON.stringify(data) }),
     updateConfig: (id, data) => request(`/system/configs/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteConfig: (id) => request(`/system/configs/${id}/`, { method: 'DELETE' }),
     
-    // 角色与菜单 (预留)
-    getRoles: () => request('/system/roles/'),
-
-// --- 角色权限管理接口 ---
+    // 角色权限管理接口
     getRoles: () => request('/system/roles/'),
     createRole: (data) => request('/system/roles/', { method: 'POST', body: JSON.stringify(data) }),
     updateRole: (id, data) => request(`/system/roles/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteRole: (id) => request(`/system/roles/${id}/`, { method: 'DELETE' }),
 
-    // --- 菜单配置管理接口 ---
-    // 注意：获取用于管理的全部菜单树（后端重写了 list 方法返回树形结构）
+    // 菜单配置管理接口
     getAllMenus: () => request('/system/menus/'), 
     createMenu: (data) => request('/system/menus/', { method: 'POST', body: JSON.stringify(data) }),
     updateMenu: (id, data) => request(`/system/menus/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteMenu: (id) => request(`/system/menus/${id}/`, { method: 'DELETE' }),
-
 };
