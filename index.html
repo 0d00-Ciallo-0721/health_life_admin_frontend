@@ -72,11 +72,12 @@
                             password: this.password
                         });
                         
-                        // 保存信息并跳转
-                        localStorage.setItem('access_token', response.token);
-                        localStorage.setItem('refresh_token', response.refresh_token);
-                        localStorage.setItem('user_info', JSON.stringify(response.user_info));
-                        
+                        // ✅ 正确代码：兼容被 CustomRenderer 包装的 data 层
+                        const responseData = response.data || response; // 兼容包装和未包装的情况
+
+                        localStorage.setItem('access_token', responseData.token);
+                        localStorage.setItem('refresh_token', responseData.refresh_token);
+                        localStorage.setItem('user_info', JSON.stringify(responseData.user_info));
                         // 跳转到主控台框架 (阶段二目标)
                         window.location.href = 'layout.html';
                     } catch (err) {

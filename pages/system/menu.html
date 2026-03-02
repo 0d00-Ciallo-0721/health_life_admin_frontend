@@ -1,28 +1,85 @@
-<div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-    <ul class="divide-y divide-gray-50">
-        <template x-for="menu in menus" :key="menu.id">
-            <li class="p-0">
-                <div class="flex items-center justify-between px-6 py-4 bg-gray-50/50 hover:bg-gray-100/50 transition-colors">
-                    <div class="flex items-center font-bold text-gray-800">
-                        <i data-lucide="folder" class="w-4 h-4 mr-3 text-teal-500"></i>
-                        <span x-text="menu.name"></span>
-                        <span class="ml-3 px-2 py-0.5 text-xs text-gray-500 bg-gray-200 rounded" x-text="menu.permission_code"></span>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>菜单管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="../../assets/js/config.js"></script>
+    <script src="../../assets/js/utils.js"></script>
+    <script src="../../assets/js/api.js"></script>
+</head>
+<body class="bg-transparent p-2 sm:p-6 text-gray-800 font-sans" x-data="menuApp()" x-init="initData()">
+
+    <div class="flex justify-between items-end mb-6 border-b border-gray-200 pb-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight">系统菜单设置</h1>
+            <p class="text-sm text-gray-500 mt-1">管理系统左侧侧边栏的路由项与操作级权限标识 (Permission Code)。</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 bg-gray-50/50 border-b border-gray-100 flex font-bold text-sm text-gray-600">
+            <div class="flex-1">菜单结构 (Name)</div>
+            <div class="w-48">权限标识 (Code)</div>
+            <div class="w-48">路由路径 (Path)</div>
+            <div class="w-20 text-center">排序</div>
+        </div>
+
+        <ul class="divide-y divide-gray-50">
+            <template x-for="menu in menus" :key="menu.id">
+                <li class="p-0">
+                    <div class="flex items-center px-6 py-4 hover:bg-teal-50/30 transition-colors group">
+                        <div class="flex-1 flex items-center font-bold text-gray-800">
+                            <i data-lucide="folder" class="w-4 h-4 mr-3 text-teal-500"></i>
+                            <span x-text="menu.name"></span>
+                        </div>
+                        <div class="w-48 text-sm text-gray-500 font-mono" x-text="menu.permission_code || '-'"></div>
+                        <div class="w-48 text-sm text-gray-500 font-mono" x-text="menu.path || '-'"></div>
+                        <div class="w-20 text-center text-sm font-bold text-gray-400" x-text="menu.sort_order"></div>
                     </div>
-                    <div class="flex space-x-2">
-                        </div>
-                </div>
-                <ul class="divide-y divide-gray-50 bg-white" x-show="menu.children && menu.children.length > 0">
-                    <template x-for="child in menu.children" :key="child.id">
-                        <div class="flex items-center justify-between px-6 py-3 pl-14 hover:bg-gray-50 transition-colors">
-                            <div class="flex items-center text-sm text-gray-600">
-                                <i data-lucide="corner-down-right" class="w-4 h-4 mr-3 text-gray-300"></i>
-                                <span x-text="child.name"></span>
-                                <span class="ml-3 px-2 py-0.5 text-[10px] text-gray-400 border border-gray-200 rounded" x-text="child.permission_code"></span>
+                    
+                    <ul class="divide-y divide-gray-50 bg-gray-50/20" x-show="menu.children && menu.children.length > 0">
+                        <template x-for="child in menu.children" :key="child.id">
+                            <div class="flex items-center px-6 py-3 pl-12 hover:bg-teal-50/30 transition-colors group">
+                                <div class="flex-1 flex items-center text-sm text-gray-700">
+                                    <i data-lucide="corner-down-right" class="w-4 h-4 mr-3 text-gray-300"></i>
+                                    <span x-text="child.name"></span>
+                                </div>
+                                <div class="w-48 text-xs text-gray-500 font-mono bg-gray-100 px-2 py-0.5 rounded border border-gray-200 truncate" x-text="child.permission_code"></div>
+                                <div class="w-48 text-xs text-gray-500 truncate" x-text="child.path"></div>
+                                <div class="w-20 text-center text-xs text-gray-400" x-text="child.sort_order"></div>
                             </div>
-                        </div>
-                    </template>
-                </ul>
-            </li>
-        </template>
-    </ul>
-</div>
+                        </template>
+                    </ul>
+                </li>
+            </template>
+        </ul>
+        
+        <div class="p-6 text-center text-sm text-gray-500 bg-gray-50 border-t border-gray-100">
+            <i data-lucide="info" class="w-4 h-4 inline mr-1 -mt-0.5"></i>
+            若需调整菜单层级，请联络系统开发人员直接在后端执行 <code class="text-rose-500 bg-rose-50 px-1 rounded">python manage.py init_menus</code> 进行同步重置。
+        </div>
+    </div>
+
+    <script>
+        function menuApp() {
+            return {
+                menus: [],
+                
+                async initData() {
+                    try {
+                        const res = await window.API.getAllMenus();
+                        this.menus = res.data || res.results || res || [];
+                        this.$nextTick(() => lucide.createIcons());
+                    } catch (e) {
+                        console.error('Failed to fetch menus');
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

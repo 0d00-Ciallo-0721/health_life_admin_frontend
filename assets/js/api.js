@@ -1,5 +1,5 @@
 // 全局 API 配置
-const API_BASE_URL = 'http://127.0.0.1:8000/api/v1';
+const API_BASE_URL = 'http://127.0.0.1:8000/api/admin/v1';
 
 /**
  * 核心 Fetch 封装
@@ -31,7 +31,11 @@ async function request(endpoint, options = {}) {
             console.warn('Unauthorized. Redirecting to login...');
             localStorage.removeItem('access_token');
             localStorage.removeItem('user_info');
-            window.location.href = '/index.html';
+            // ❌ 原代码：window.location.href = '/index.html'; 
+            // 如果你的本地服务器没挂载在根目录，这会导致 404
+            
+            // ✅ 修改为：
+            window.location.href = window.location.origin + '/index.html';
             throw new Error('Unauthorized');
         }
 
@@ -121,5 +125,18 @@ window.API = {
     
     // 角色与菜单 (预留)
     getRoles: () => request('/system/roles/'),
+
+// --- 角色权限管理接口 ---
+    getRoles: () => request('/system/roles/'),
+    createRole: (data) => request('/system/roles/', { method: 'POST', body: JSON.stringify(data) }),
+    updateRole: (id, data) => request(`/system/roles/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteRole: (id) => request(`/system/roles/${id}/`, { method: 'DELETE' }),
+
+    // --- 菜单配置管理接口 ---
+    // 注意：获取用于管理的全部菜单树（后端重写了 list 方法返回树形结构）
+    getAllMenus: () => request('/system/menus/'), 
+    createMenu: (data) => request('/system/menus/', { method: 'POST', body: JSON.stringify(data) }),
+    updateMenu: (id, data) => request(`/system/menus/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteMenu: (id) => request(`/system/menus/${id}/`, { method: 'DELETE' }),
 
 };

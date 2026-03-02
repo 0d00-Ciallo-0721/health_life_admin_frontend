@@ -17,7 +17,10 @@ function layoutApp() {
         },
 
         async initApp() {
-            if (!window.Utils.getToken()) {
+            // 1. 检查登录状态
+            const token = localStorage.getItem('access_token');
+            // ✅ 修改点：增加对 'undefined' 字符串的过滤
+            if (!token || token === 'undefined') {
                 window.location.href = 'index.html';
                 return;
             }

@@ -141,8 +141,12 @@
                     this.loading = true;
                     try {
                         const response = await window.API.getUsers(this.searchQuery);
-                        // 假设 DRF 列表返回格式为 { results: [...] } 或者直接就是数组
-                        this.users = response.results || response || [];
+                        
+                        // ✅ 兼容 CustomRenderer 包装的 {code: 200, data: [...]} 格式
+                        const resData = response.data || response;
+                        // 如果 DRF 开启了分页，实际列表在 resData.results 里；如果没有分页，就是 resData 本身
+                        this.users = resData.results || resData || [];
+                        
                     } catch (error) {
                         console.error('获取用户失败:', error);
                         alert(error.message || '获取数据失败');
