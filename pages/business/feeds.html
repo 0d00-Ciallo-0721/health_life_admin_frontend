@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>社区动态审核</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="../../assets/js/api.js"></script>
+</head>
+<body class="bg-transparent p-2 sm:p-6 text-gray-800 font-sans" x-data="feedsApp()" x-init="initData()">
+
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight">社区内容审核</h1>
+            <p class="text-sm text-gray-500 mt-1">查看用户发布的动态，对违规内容进行下架处理。</p>
+        </div>
+
+        <div class="relative w-full sm:w-72">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+            <input type="text" x-model="searchQuery" @keyup.debounce.500ms="fetchData()"
+                class="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-sm"
+                placeholder="搜索动态内容...">
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative">
+        <div x-show="loading" class="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex items-center justify-center">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-100">
+                        <th class="px-6 py-4 font-semibold w-24">发布者ID</th>
+                        <th class="px-6 py-4 font-semibold w-32">类型</th>
+                        <th class="px-6 py-4 font-semibold">动态内容</th>
+                        <th class="px-6 py-4 font-semibold w-32">数据</th>
+                        <th class="px-6 py-4 font-semibold w-40">发布时间</th>
+                        <th class="px-6 py-4 font-semibold text-right w-24">操作</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50 text-sm">
+                    <template x-for="feed in feeds" :key="feed.id">
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-4 font-medium text-gray-900" x-text="feed.user_id"></td>
+                            
+                            <td class="px-6 py-4">
+                                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium"
+                                      :class="{
+                                        'bg-blue-50 text-blue-600': feed.feed_type === 'post',
+                                        'bg-orange-50 text-orange-600': feed.feed_type === 'recipe',
+                                        'bg-purple-50 text-purple-600': feed.feed_type === 'restaurant'
+                                      }" x-text="getTypeName(feed.feed_type)">
+                                </span>
+                            </td>
+
+                            <td class="px-6 py-4">
+                                <div class="text-gray-800 line-clamp-2" x-text="feed.content"></div>
+                                <template x-if="feed.images && feed.images.length > 0">
+                                    <div class="text-xs text-blue-500 mt-1 flex items-center">
+                                        <i data-lucide="image" class="w-3 h-3 mr-1"></i>
+                                        <span x-text="`附带 ${feed.images.length} 张图片`"></span>
+                                    </div>
+                                </template>
+                            </td>
+
+                            <td class="px-6 py-4 text-gray-500 text-xs space-y-1">
+                                <div class="flex items-center"><i data-lucide="heart" class="w-3 h-3 mr-1"></i> <span x-text="feed.likes_count"></span></div>
+                                <div class="flex items-center"><i data-lucide="message-square" class="w-3 h-3 mr-1"></i> <span x-text="feed.comments_count"></span></div>
+                            </td>
+
+                            <td class="px-6 py-4 text-gray-500 text-xs" x-text="formatDate(feed.created_at)"></td>
+
+                            <td class="px-6 py-4 text-right">
+                                <button @click="deleteFeed(feed.id)" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md transition-colors inline-flex items-center">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5 mr-1"></i> 删除
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr x-show="!loading && feeds.length === 0">
+                        <td colspan="6" class="px-6 py-12 text-center text-gray-500">没找到相关的动态记录</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function feedsApp() {
+            return {
+                feeds: [],
+                loading: true,
+                searchQuery: '',
+
+                async initData() { await this.fetchData(); },
+
+                async fetchData() {
+                    this.loading = true;
+                    try {
+                        const res = await window.API.getFeeds(this.searchQuery);
+                        this.feeds = res.data?.results || res.data || [];
+                    } catch (e) {
+                        alert(e.message || '获取动态失败');
+                    } finally {
+                        this.loading = false;
+                        this.$nextTick(() => lucide.createIcons());
+                    }
+                },
+
+                async deleteFeed(id) {
+                    if (!confirm('确定要删除这条违规动态吗？（同时会删除其下所有评论）')) return;
+                    try {
+                        await window.API.deleteFeed(id);
+                        await this.fetchData(); // 刷新列表
+                    } catch (e) {
+                        alert('删除失败: ' + e.message);
+                    }
+                },
+
+                getTypeName(type) {
+                    const map = { 'post': '图文动态', 'recipe': '菜谱分享', 'restaurant': '探店打卡' };
+                    return map[type] || '未知';
+                },
+
+                formatDate(dateString) {
+                    if (!dateString) return '-';
+                    const date = new Date(dateString);
+                    return date.toLocaleString('zh-CN', { hour12: false });
+                }
+            }
+        }
+    </script>
+</body>
+</html>

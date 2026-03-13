@@ -142,4 +142,18 @@ window.API = {
     createMenu: (data) => request('/system/menus/', { method: 'POST', body: JSON.stringify(data) }),
     updateMenu: (id, data) => request(`/system/menus/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteMenu: (id) => request(`/system/menus/${id}/`, { method: 'DELETE' }),
+    // --- 补充：成就字典管理接口 ---
+    getAchievements: (search = '') => request(`/business/achievements/?search=${encodeURIComponent(search)}`),
+    createAchievement: (data) => request('/business/achievements/', { method: 'POST', body: JSON.stringify(data) }),
+    updateAchievement: (id, data) => request(`/business/achievements/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteAchievement: (id) => request(`/business/achievements/${id}/`, { method: 'DELETE' }),
+
+    // --- 补充：社区动态审核 (MongoDB) ---
+    getFeeds: (search = '') => request(`/business/feeds/?search=${encodeURIComponent(search)}`),
+    deleteFeed: (id) => request(`/business/feeds/${id}/`, { method: 'DELETE' }), // 违规下架
+
+    // --- 补充：社区评论审核 (MongoDB) ---
+    getComments: (search = '') => request(`/business/comments/?search=${encodeURIComponent(search)}`),
+    deleteComment: (id) => request(`/business/comments/${id}/`, { method: 'DELETE' }), // 违规下架
+
 };
