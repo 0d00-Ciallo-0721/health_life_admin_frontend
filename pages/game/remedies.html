@@ -19,73 +19,82 @@
                 <i data-lucide="life-buoy" class="w-6 h-6 mr-2 text-rose-500"></i>
                 健康补救方案
             </h1>
-            <p class="text-sm text-gray-500 mt-1">配置用户触发负面健康行为 (如熬夜、暴饮暴食) 时的补救任务规则。</p>
+            <p class="text-sm text-gray-500 mt-1">配置用户触发负面健康行为 (如熬夜、暴食) 时的补救建议及积分扣除规则。</p>
         </div>
-        <button @click="openModal()" class="flex items-center px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-medium transition-all shadow-lg shadow-rose-500/30">
+        <button @click="openModal()" class="flex items-center px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-sm font-medium transition-all shadow-[0_4px_14px_0_rgba(99,102,241,0.39)] hover:-translate-y-0.5">
             <i data-lucide="plus" class="w-4 h-4 mr-1.5"></i>新增方案
         </button>
     </div>
 
-    <div class="flex flex-col sm:flex-row gap-4 mb-6">
-        <select x-model="searchScenario" @change="fetchData()"
-            class="w-full sm:w-64 px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none transition-all shadow-sm text-sm appearance-none cursor-pointer">
-            <option value="">所有触发场景</option>
-            <option value="overeat">暴饮暴食 (Overeat)</option>
-            <option value="stay_up">熬夜 (Stay Up)</option>
-            <option value="miss_workout">缺乏运动 (Miss Workout)</option>
-            <option value="low_water">饮水不足 (Low Water)</option>
-        </select>
-    </div>
-
-    <div class="bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100/80 overflow-hidden relative">
-        <div x-show="loading" class="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex justify-center items-center">
-            <i data-lucide="loader-2" class="w-8 h-8 animate-spin text-rose-500"></i>
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        
+        <div class="lg:col-span-1 bg-white rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-gray-100 p-4 h-fit sticky top-6">
+            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-2">选择触发场景</h3>
+            <div class="space-y-1">
+                <template x-for="cat in categories" :key="cat.code">
+                    <button @click="searchScenario = cat.code; fetchData()"
+                            class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all duration-200"
+                            :class="searchScenario === cat.code ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-gray-600 hover:bg-gray-50 font-medium'">
+                        <div class="flex items-center">
+                            <i :data-lucide="cat.icon" class="w-4 h-4 mr-3" :class="searchScenario === cat.code ? 'text-indigo-500' : 'text-gray-400'"></i>
+                            <span x-text="cat.name"></span>
+                        </div>
+                    </button>
+                </template>
+            </div>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-gray-50/50 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-100">
-                        <th class="px-6 py-4 font-semibold w-24">排序</th>
-                        <th class="px-6 py-4 font-semibold">触发场景</th>
-                        <th class="px-6 py-4 font-semibold">方案标题与描述</th>
-                        <th class="px-6 py-4 font-semibold text-right">操作</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
-                    <template x-for="item in remedies" :key="item.id">
-                        <tr class="hover:bg-gray-50/50 transition-colors group">
-                            <td class="px-6 py-4">
-                                <span class="px-2.5 py-1 bg-gray-100 text-gray-500 font-mono text-xs rounded-md border border-gray-200" x-text="'#' + item.order"></span>
-                            </td>
-                            <td class="px-6 py-4">
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border"
-                                      :class="{
-                                          'bg-orange-50 text-orange-600 border-orange-200': item.scenario === 'overeat',
-                                          'bg-indigo-50 text-indigo-600 border-indigo-200': item.scenario === 'stay_up',
-                                          'bg-gray-50 text-gray-600 border-gray-200': !['overeat', 'stay_up'].includes(item.scenario)
-                                      }" x-text="getScenarioName(item.scenario)">
-                                </span>
-                            </td>
-                            <td class="px-6 py-4">
-                                <div class="text-sm font-bold text-gray-900" x-text="item.title || item.name || '未命名方案'"></div>
-                                <div class="text-xs text-gray-500 mt-1 max-w-md truncate" x-text="item.description || item.content || '无详细描述'"></div>
-                            </td>
-                            <td class="px-6 py-4 text-right">
-                                <button @click="openModal(item)" class="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors mr-1">
-                                    <i data-lucide="edit-3" class="w-4 h-4"></i>
-                                </button>
-                                <button @click="deleteItem(item.id)" class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                </button>
+        <div class="lg:col-span-3 bg-white rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-gray-100/80 overflow-hidden relative min-h-[400px]">
+            <div x-show="loading" class="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex justify-center items-center">
+                <i data-lucide="loader-2" class="w-8 h-8 animate-spin text-indigo-500"></i>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50/50 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-100">
+                            <th class="px-6 py-4 font-semibold w-20">排序</th>
+                            <th class="px-6 py-4 font-semibold">方案内容</th>
+                            <th class="px-6 py-4 font-semibold">消耗积分</th>
+                            <th class="px-6 py-4 font-semibold text-right">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        <template x-for="item in remedies" :key="item.id">
+                            <tr class="hover:bg-indigo-50/20 transition-colors group">
+                                <td class="px-6 py-4">
+                                    <span class="px-2.5 py-1 bg-gray-50 text-gray-500 font-mono text-xs rounded-md border border-gray-200" x-text="'#' + item.order"></span>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="text-sm font-bold text-gray-900" x-text="item.title || item.name || '未命名方案'"></div>
+                                    <div class="text-xs text-gray-500 mt-1 max-w-md line-clamp-2 leading-relaxed" x-text="item.description || item.content || '无详细描述'"></div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-rose-50 text-rose-600 border border-rose-100">
+                                        <i data-lucide="flame" class="w-3 h-3 mr-1"></i> -<span x-text="item.points_cost || 0"></span> PTS
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-right">
+                                    <div class="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button @click="openModal(item)" class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors mr-1">
+                                            <i data-lucide="edit-3" class="w-4 h-4"></i>
+                                        </button>
+                                        <button @click="deleteItem(item.id)" class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="!loading && remedies.length === 0">
+                            <td colspan="4" class="px-6 py-16 flex-col text-center flex items-center justify-center text-gray-400 text-sm">
+                                <i data-lucide="inbox" class="w-8 h-8 mb-2 opacity-50"></i>
+                                该场景下暂无补救方案
                             </td>
                         </tr>
-                    </template>
-                    <tr x-show="!loading && remedies.length === 0">
-                        <td colspan="4" class="px-6 py-12 text-center text-gray-500 text-sm">暂无该场景的补救方案记录</td>
-                    </tr>
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -95,40 +104,45 @@
         <div x-show="isModalOpen" x-transition class="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg mx-4 flex flex-col overflow-hidden">
             <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                 <h3 class="text-lg font-bold text-gray-900" x-text="isEditing ? '编辑方案' : '新增补救方案'"></h3>
-                <button @click="closeModal()" class="text-gray-400 hover:text-gray-600 p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
+                <button @click="closeModal()" class="text-gray-400 hover:text-gray-600 p-1 bg-gray-200/50 rounded-xl"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
 
             <form @submit.prevent="submitForm" class="p-6 space-y-5 flex-1 overflow-y-auto max-h-[70vh]">
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">触发场景 *</label>
-                        <select x-model="formData.scenario" required class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 text-sm appearance-none">
-                            <option value="overeat">暴饮暴食</option>
-                            <option value="stay_up">熬夜</option>
-                            <option value="miss_workout">缺乏运动</option>
-                            <option value="low_water">饮水不足</option>
+                        <select x-model="formData.scenario" required class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm appearance-none">
+                            <template x-for="cat in categories.slice(1)" :key="cat.code">
+                                <option :value="cat.code" x-text="cat.name"></option>
+                            </template>
                         </select>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">展示排序 (越小越靠前) *</label>
-                        <input type="number" x-model.number="formData.order" required min="1" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 text-sm">
+                        <input type="number" x-model.number="formData.order" required min="1" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">方案标题 *</label>
+                        <input type="text" x-model="formData.title" required class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">执行成本 (扣除积分数) *</label>
+                        <input type="number" x-model.number="formData.points_cost" required min="0" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-rose-500 text-sm">
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5">方案标题 *</label>
-                    <input type="text" x-model="formData.title" required class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 text-sm">
-                </div>
-
-                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1.5">详细执行内容</label>
-                    <textarea x-model="formData.description" rows="3" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 text-sm resize-none"></textarea>
+                    <textarea x-model="formData.description" rows="3" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm resize-none"></textarea>
                 </div>
             </form>
 
             <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-white">
                 <button type="button" @click="closeModal()" class="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">取消</button>
-                <button type="button" @click="submitForm()" :disabled="submitting" class="px-5 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-medium shadow-md flex items-center disabled:opacity-70">
+                <button type="button" @click="submitForm()" :disabled="submitting" class="px-5 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-sm font-medium shadow-[0_4px_14px_0_rgba(99,102,241,0.39)] flex items-center disabled:opacity-70">
                     <i data-lucide="loader-2" x-show="submitting" class="w-4 h-4 mr-2 animate-spin"></i>
                     <span x-text="isEditing ? '保存修改' : '确认创建'"></span>
                 </button>
@@ -142,19 +156,24 @@
                 remedies: [],
                 loading: true,
                 searchScenario: '',
-                isModalOpen: false,
-                isEditing: false,
-                submitting: false,
-                formData: { id: null, scenario: 'overeat', order: 1, title: '', description: '' },
+                categories: [
+                    { code: '', name: '全部场景概览', icon: 'layout-grid' },
+                    { code: 'overeat', name: '暴饮暴食', icon: 'pizza' },
+                    { code: 'stay_up', name: '熬夜修仙', icon: 'moon' },
+                    { code: 'miss_workout', name: '缺乏运动', icon: 'sofa' },
+                    { code: 'low_water', name: '饮水不足', icon: 'droplet' }
+                ],
+                isModalOpen: false, isEditing: false, submitting: false,
+                formData: { id: null, scenario: 'overeat', order: 1, title: '', description: '', points_cost: 10 },
 
                 async initData() { await this.fetchData(); },
 
                 async fetchData() {
                     this.loading = true;
                     try {
-                        // 确保你的 api.js 中有 window.API.getRemedies(scenario)
+                        // 保留真实 API 请求
                         const res = await window.API.getRemedies(this.searchScenario);
-                        this.remedies = res.results || res || [];
+                        this.remedies = res.results || res.data || res || [];
                     } catch (e) { console.error('获取失败', e); } 
                     finally {
                         this.loading = false;
@@ -162,21 +181,19 @@
                     }
                 },
 
-                getScenarioName(key) {
-                    const map = { 'overeat': '暴饮暴食', 'stay_up': '熬夜', 'miss_workout': '缺乏运动', 'low_water': '饮水不足' };
-                    return map[key] || key;
-                },
-
                 openModal(item = null) {
                     if (item) {
                         this.isEditing = true;
                         this.formData = { 
                             id: item.id, scenario: item.scenario, order: item.order, 
-                            title: item.title || item.name, description: item.description || item.content 
+                            title: item.title || item.name, description: item.description || item.content,
+                            points_cost: item.points_cost || 0
                         };
                     } else {
                         this.isEditing = false;
-                        this.formData = { id: null, scenario: 'overeat', order: 1, title: '', description: '' };
+                        // 默认选中左侧高亮的分类，如果选的是“全部”，则默认overeat
+                        const defaultScen = this.searchScenario || 'overeat';
+                        this.formData = { id: null, scenario: defaultScen, order: 1, title: '', description: '', points_cost: 10 };
                     }
                     this.isModalOpen = true;
                 },

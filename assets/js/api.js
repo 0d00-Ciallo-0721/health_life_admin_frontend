@@ -51,7 +51,6 @@ async function request(endpoint, options = {}) {
             const normalized = { ...data };
             
             // 🚀 修复点：安全补充别名，绝不破坏原有嵌套！
-            // 这样既能兼容 { count, results: [] } 也能兼容 { code: 200, data: {...} }
             if (normalized.results !== undefined) {
                 if (normalized.data === undefined) normalized.data = normalized.results;
             } else if (normalized.data !== undefined) {
@@ -78,6 +77,9 @@ window.API = {
     }),
     getMenus: () => request('/system/menus/tree/'),
     getDashboard: () => request('/dashboard/summary/'),
+    
+    // 🚀 新增：获取健康大盘日志统计
+    getJournalStats: () => request('/business/stats/journal/'),
 
     // 用户管理接口
     getUsers: (search = '') => request(`/business/users/?search=${encodeURIComponent(search)}`),
@@ -90,21 +92,41 @@ window.API = {
         body: JSON.stringify({ result })
     }),
 
+    // 商家管理
+    getRestaurants: (search = '') => request(`/business/restaurants/?search=${encodeURIComponent(search)}`),
+    createRestaurant: (data) => request('/business/restaurants/', { method: 'POST', body: JSON.stringify(data) }),
+    updateRestaurant: (id, data) => request(`/business/restaurants/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteRestaurant: (id) => request(`/business/restaurants/${id}/`, { method: 'DELETE' }),
+
+    // ================== 🚀 游戏化管理 (修正为 /game/ 前缀) ==================
     // 挑战任务 CRUD 接口
     getTasks: (search = '', type = '') => {
         let query = `?search=${encodeURIComponent(search)}`;
-        if (type) query += `&type=${type}`;
-        return request(`/business/tasks/${query}`);
+        if (type) query += `&task_type=${type}`;
+        return request(`/game/challenges/${query}`);
     },
-    createTask: (data) => request('/business/tasks/', {
+    createTask: (data) => request('/game/challenges/', {
         method: 'POST', body: JSON.stringify(data)
     }),
-    updateTask: (id, data) => request(`/business/tasks/${id}/`, {
+    updateTask: (id, data) => request(`/game/challenges/${id}/`, {
         method: 'PUT', body: JSON.stringify(data)
     }),
-    deleteTask: (id) => request(`/business/tasks/${id}/`, {
+    deleteTask: (id) => request(`/game/challenges/${id}/`, {
         method: 'DELETE'
     }),
+
+    // 补救方案管理
+    getRemedies: (scenario = '') => request(`/game/remedies/?scenario=${encodeURIComponent(scenario)}`),
+    createRemedy: (data) => request('/game/remedies/', { method: 'POST', body: JSON.stringify(data) }),
+    updateRemedy: (id, data) => request(`/game/remedies/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteRemedy: (id) => request(`/game/remedies/${id}/`, { method: 'DELETE' }),
+
+    // 成就字典管理接口
+    getAchievements: (search = '') => request(`/game/achievements/?search=${encodeURIComponent(search)}`),
+    createAchievement: (data) => request('/game/achievements/', { method: 'POST', body: JSON.stringify(data) }),
+    updateAchievement: (id, data) => request(`/game/achievements/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteAchievement: (id) => request(`/game/achievements/${id}/`, { method: 'DELETE' }),
+    // =======================================================================
 
     // 系统操作日志与通知
     getLogs: (operator = '', module = '') => request(`/system/logs/?operator=${encodeURIComponent(operator)}&module=${encodeURIComponent(module)}`),
@@ -115,15 +137,6 @@ window.API = {
     deleteNotification: (id) => request(`/system/notifications/${id}/`, {
         method: 'DELETE'
     }),
-    
-    // 商家管理
-    getRestaurants: (search = '') => request(`/business/restaurants/?search=${encodeURIComponent(search)}`),
-    createRestaurant: (data) => request('/business/restaurants/', { method: 'POST', body: JSON.stringify(data) }),
-    updateRestaurant: (id, data) => request(`/business/restaurants/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
-    deleteRestaurant: (id) => request(`/business/restaurants/${id}/`, { method: 'DELETE' }),
-
-    // 补救方案管理
-    getRemedies: (scenario = '') => request(`/business/remedies/?scenario=${encodeURIComponent(scenario)}`),
     
     // 系统配置 CRUD
     getConfigs: () => request('/system/configs/'),
@@ -142,11 +155,6 @@ window.API = {
     createMenu: (data) => request('/system/menus/', { method: 'POST', body: JSON.stringify(data) }),
     updateMenu: (id, data) => request(`/system/menus/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteMenu: (id) => request(`/system/menus/${id}/`, { method: 'DELETE' }),
-    // --- 补充：成就字典管理接口 ---
-    getAchievements: (search = '') => request(`/business/achievements/?search=${encodeURIComponent(search)}`),
-    createAchievement: (data) => request('/business/achievements/', { method: 'POST', body: JSON.stringify(data) }),
-    updateAchievement: (id, data) => request(`/business/achievements/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
-    deleteAchievement: (id) => request(`/business/achievements/${id}/`, { method: 'DELETE' }),
 
     // --- 补充：社区动态审核 (MongoDB) ---
     getFeeds: (search = '') => request(`/business/feeds/?search=${encodeURIComponent(search)}`),
@@ -155,5 +163,4 @@ window.API = {
     // --- 补充：社区评论审核 (MongoDB) ---
     getComments: (search = '') => request(`/business/comments/?search=${encodeURIComponent(search)}`),
     deleteComment: (id) => request(`/business/comments/${id}/`, { method: 'DELETE' }), // 违规下架
-
 };

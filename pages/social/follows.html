@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>异常刷粉风控</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-transparent p-2 sm:p-6 text-gray-800 font-sans" x-data="anomalyApp()" x-init="initData()">
+
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 tracking-tight flex items-center">
+            <i data-lucide="shield-alert" class="w-6 h-6 mr-2 text-rose-500"></i>
+            风控监控：粉丝异常波动
+        </h1>
+        <p class="text-sm text-gray-500 mt-1">系统自动检测 24 小时内粉丝数爆发式增长的账户，防止僵尸粉灰产。</p>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-rose-100 overflow-hidden relative">
+        <div class="bg-rose-50 border-b border-rose-100 px-6 py-3 flex items-center justify-between">
+            <div class="flex items-center text-rose-700 text-sm font-medium">
+                <span class="relative flex h-3 w-3 mr-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+                </span>
+                高危账户列表实时监控中
+            </div>
+            <button @click="initData()" class="text-xs text-rose-600 hover:text-rose-800 flex items-center">
+                <i data-lucide="refresh-cw" class="w-3 h-3 mr-1" :class="loading ? 'animate-spin' : ''"></i> 刷新数据
+            </button>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-white text-gray-400 text-xs uppercase tracking-wider border-b border-gray-100">
+                        <th class="px-6 py-4 font-semibold">被监测用户</th>
+                        <th class="px-6 py-4 font-semibold">近期粉丝增量</th>
+                        <th class="px-6 py-4 font-semibold">风险等级</th>
+                        <th class="px-6 py-4 font-semibold">检测时间</th>
+                        <th class="px-6 py-4 font-semibold text-right">管控操作</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    <template x-for="user in anomalies" :key="user.id">
+                        <tr class="hover:bg-rose-50/30 transition-colors">
+                            <td class="px-6 py-4">
+                                <div class="flex items-center space-x-3">
+                                    <img :src="`https://ui-avatars.com/api/?name=${user.username}&background=random`" class="w-10 h-10 rounded-full">
+                                    <div>
+                                        <p class="text-sm font-bold text-gray-900" x-text="user.nickname"></p>
+                                        <p class="text-xs text-gray-500" x-text="'@' + user.username"></p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center text-rose-600 font-bold">
+                                    <i data-lucide="trending-up" class="w-4 h-4 mr-1"></i>
+                                    +<span x-text="user.recent_followers_gained"></span>
+                                    <span class="text-xs text-gray-400 font-normal ml-2">/ 24h</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="px-2.5 py-1 rounded-md text-xs font-bold border"
+                                      :class="{
+                                          'bg-rose-100 text-rose-700 border-rose-200': user.risk_level === 'HIGH',
+                                          'bg-orange-100 text-orange-700 border-orange-200': user.risk_level === 'MEDIUM'
+                                      }" x-text="user.risk_level === 'HIGH' ? '高风险 (极度异常)' : '中度异常'">
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-500" x-text="user.detected_at"></td>
+                            <td class="px-6 py-4 text-right space-x-2">
+                                <button class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs hover:bg-gray-50 transition-colors">清洗粉丝</button>
+                                <button class="px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs hover:bg-rose-600 shadow shadow-rose-200 transition-colors">直接封禁</button>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr x-show="!loading && anomalies.length === 0">
+                        <td colspan="5" class="py-16 text-center text-gray-500 text-sm">
+                            <i data-lucide="check-circle" class="w-12 h-12 text-emerald-400 mx-auto mb-3 opacity-50"></i>
+                            当前无异常刷粉行为
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function anomalyApp() {
+            return {
+                anomalies: [],
+                loading: false,
+
+                async initData() {
+                    this.loading = true;
+                    try {
+                        // 真实接口: GET /api/admin/v1/social/follows/anomaly/
+                        setTimeout(() => {
+                            this.anomalies = [
+                                { id: 101, username: 'fake_bot_master', nickname: '健康大V-互关', recent_followers_gained: 4520, risk_level: 'HIGH', detected_at: '10分钟前' },
+                                { id: 102, username: 'diet_seller01', nickname: '私教小美(卖课)', recent_followers_gained: 850, risk_level: 'MEDIUM', detected_at: '1小时前' }
+                            ];
+                            this.loading = false;
+                            this.$nextTick(() => lucide.createIcons());
+                        }, 600);
+                    } catch (e) {
+                        this.loading = false;
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
