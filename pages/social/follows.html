@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="../../assets/js/api.js"></script>
 </head>
 <body class="bg-transparent p-2 sm:p-6 text-gray-800 font-sans" x-data="anomalyApp()" x-init="initData()">
 
@@ -48,9 +49,9 @@
                         <tr class="hover:bg-rose-50/30 transition-colors">
                             <td class="px-6 py-4">
                                 <div class="flex items-center space-x-3">
-                                    <img :src="`https://ui-avatars.com/api/?name=${user.username}&background=random`" class="w-10 h-10 rounded-full">
+                                    <img :src="user.user_info?.avatar || `https://ui-avatars.com/api/?name=${user.username}&background=random`" class="w-10 h-10 rounded-full">
                                     <div>
-                                        <p class="text-sm font-bold text-gray-900" x-text="user.nickname"></p>
+                                        <p class="text-sm font-bold text-gray-900" x-text="user.nickname || user.username"></p>
                                         <p class="text-xs text-gray-500" x-text="'@' + user.username"></p>
                                     </div>
                                 </div>
@@ -66,11 +67,12 @@
                                 <span class="px-2.5 py-1 rounded-md text-xs font-bold border"
                                       :class="{
                                           'bg-rose-100 text-rose-700 border-rose-200': user.risk_level === 'HIGH',
-                                          'bg-orange-100 text-orange-700 border-orange-200': user.risk_level === 'MEDIUM'
-                                      }" x-text="user.risk_level === 'HIGH' ? '高风险 (极度异常)' : '中度异常'">
+                                          'bg-orange-100 text-orange-700 border-orange-200': user.risk_level === 'MEDIUM',
+                                          'bg-gray-100 text-gray-700 border-gray-200': (!user.risk_level || user.risk_level === 'LOW')
+                                      }" x-text="user.risk_level === 'HIGH' ? '高风险 (极度异常)' : (user.risk_level === 'MEDIUM' ? '中度异常' : '低风险')">
                                 </span>
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-500" x-text="user.detected_at"></td>
+                            <td class="px-6 py-4 text-sm text-gray-500" x-text="formatDate(user.detected_at)"></td>
                             <td class="px-6 py-4 text-right space-x-2">
                                 <button class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs hover:bg-gray-50 transition-colors">清洗粉丝</button>
                                 <button class="px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs hover:bg-rose-600 shadow shadow-rose-200 transition-colors">直接封禁</button>
@@ -97,18 +99,22 @@
                 async initData() {
                     this.loading = true;
                     try {
-                        // 真实接口: GET /api/admin/v1/social/follows/anomaly/
-                        setTimeout(() => {
-                            this.anomalies = [
-                                { id: 101, username: 'fake_bot_master', nickname: '健康大V-互关', recent_followers_gained: 4520, risk_level: 'HIGH', detected_at: '10分钟前' },
-                                { id: 102, username: 'diet_seller01', nickname: '私教小美(卖课)', recent_followers_gained: 850, risk_level: 'MEDIUM', detected_at: '1小时前' }
-                            ];
-                            this.loading = false;
-                            this.$nextTick(() => lucide.createIcons());
-                        }, 600);
+                        // 移除 setTimeout 和 Mock 数据，使用真实 API
+                        const res = await window.API.getFollowsAnomaly();
+                        this.anomalies = res?.data?.list || res?.data || res?.results || [];
                     } catch (e) {
+                        console.error('获取风控列表失败', e);
+                        alert('获取风控列表失败: ' + (e.message || '请检查网络'));
+                    } finally {
                         this.loading = false;
+                        this.$nextTick(() => lucide.createIcons());
                     }
+                },
+                
+                formatDate(dateString) {
+                    if (!dateString) return '';
+                    const d = new Date(dateString);
+                    return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
                 }
             }
         }

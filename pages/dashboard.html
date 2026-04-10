@@ -230,31 +230,19 @@
                     });
                 },
 
-                // 智能降级：如果后端未返回完整数据，提供好看的 Mock 数据兜底
+                // 智能降级：只确保对象结构不报错，不再注入虚假 Mock 数据掩盖后端问题
                 applyFallbackDataIfEmpty() {
                     if (!this.summaryData.cards || this.summaryData.cards.length === 0) {
-                        this.summaryData.cards = [
-                            { title: "平台总用户数", value: 12450, today_added: 128, icon: "users" },
-                            { title: "待审核菜谱数", value: 384, action_needed: 12, icon: "book-open" },
-                            { title: "今日活跃打卡", value: 8902, icon: "activity" },
-                            { title: "社区动态总数", value: 45210, today_added: 340, icon: "message-square" }
-                        ];
+                        this.summaryData.cards = [];
                     }
                     if (!this.summaryData.trend || this.summaryData.trend.length === 0) {
-                        this.summaryData.trend = [
-                            { date: "04-04", value: 7100 }, { date: "04-05", value: 7450 }, 
-                            { date: "04-06", value: 7300 }, { date: "04-07", value: 8200 }, 
-                            { date: "04-08", value: 8600 }, { date: "04-09", value: 8450 }, 
-                            { date: "04-10", value: 8902 }
-                        ];
+                        this.summaryData.trend = [];
                     }
-                    if (Object.keys(this.journalStats.water_stats).length === 0) {
-                        this.journalStats = {
-                            water_stats: { completion_rate_pct: 68.5, completed_users: 8210 },
-                            calorie_stats: { logging_rate_pct: 45.2, total_intake_kcal: 2350000 },
-                            workout_stats: { completion_rate_pct: 32.8, total_burned_kcal: 850000 }
-                        };
+                    if (Object.keys(this.journalStats.water_stats || {}).length === 0) {
+                        this.journalStats.water_stats = { completion_rate_pct: 0, completed_users: 0 };
                     }
+                    // 移除对未在文档中定义的 calorie_stats 和 workout_stats 的兜底
+                    // UI 层已通过 ?. 和 || 0 避免 undefined 错误
                 }
             }
         }

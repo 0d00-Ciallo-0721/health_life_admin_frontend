@@ -92,12 +92,89 @@
         </div>
     </div>
 
+    <div x-show="isModalOpen" style="display: none;" class="fixed z-10 inset-0 overflow-y-auto" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div x-show="isModalOpen" @click="closeModal()" x-transition.opacity class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            
+            <div x-show="isModalOpen" x-transition class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-bold text-gray-900 mb-4 border-b pb-2 flex items-center">
+                        <i data-lucide="list-tree" class="w-5 h-5 mr-2 text-indigo-600"></i>
+                        <span x-text="isEditing ? '编辑菜单' : '新增菜单'"></span>
+                    </h3>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">父级菜单</label>
+                            <select x-model="formData.parent" class="block w-full border border-gray-300 rounded-md py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <option value="">-- 作为根菜单 (顶级) --</option>
+                                <template x-for="parentMenu in menus" :key="parentMenu.id">
+                                    <option x-show="parentMenu.id !== formData.id" :value="parentMenu.id" x-text="parentMenu.name"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">菜单名称 <span class="text-red-500">*</span></label>
+                            <input type="text" x-model="formData.name" placeholder="如: 用户管理" class="block w-full border border-gray-300 rounded-md py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
+
+                        <div class="flex gap-4">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">路由路径 (Path)</label>
+                                <input type="text" x-model="formData.path" placeholder="如: /business/users" class="block w-full border border-gray-300 rounded-md py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                            </div>
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">组件 (Component)</label>
+                                <input type="text" x-model="formData.component" placeholder="如: pages/users" class="block w-full border border-gray-300 rounded-md py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                            </div>
+                        </div>
+
+                        <div class="flex gap-4">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">权限标识 (Code)</label>
+                                <input type="text" x-model="formData.permission_code" placeholder="如: business:user:list" class="block w-full border border-gray-300 rounded-md py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono text-xs">
+                            </div>
+                            <div class="w-24">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">排序规则</label>
+                                <input type="number" x-model.number="formData.sort_order" class="block w-full border border-gray-300 rounded-md py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200">
+                    <button type="button" @click="submitForm()" :disabled="submitting" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50">
+                        <span x-show="!submitting">保存提交</span>
+                        <span x-show="submitting" class="flex items-center"><i data-lucide="loader-2" class="w-4 h-4 animate-spin mr-2"></i>处理中...</span>
+                    </button>
+                    <button type="button" @click="closeModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         function menuApp() {
             return {
                 menus: [],
                 loading: false,
+                isModalOpen: false,
+                isEditing: false,
+                submitting: false,
                 toast: { show: false, message: '' },
+                
+                // 表单数据模型
+                formData: { 
+                    id: null, 
+                    name: '', 
+                    path: '', 
+                    component: '', 
+                    permission_code: '', 
+                    sort_order: 0, 
+                    parent: '' 
+                },
                 
                 async initData() {
                     this.loading = true;
@@ -112,19 +189,74 @@
                     }
                 },
                 
-                // --- 以下为兜底的基础增删逻辑实现 ---
                 openModal(menu = null) {
-                    // Modal 逻辑占位（因为侧重点是呈现和后端指令互补）
-                    alert(menu ? `功能开发中：编辑菜单 [${menu.name}]` : '功能开发中：新增菜单');
+                    if (menu) {
+                        this.isEditing = true;
+                        this.formData = {
+                            id: menu.id || menu._id,
+                            name: menu.name || menu.title || '',
+                            path: menu.path || '',
+                            component: menu.component || '',
+                            permission_code: menu.permission_code || '',
+                            sort_order: menu.sort_order || 0,
+                            // 兼容数字 0 或 null 等无父级的情况
+                            parent: menu.parent || ''
+                        };
+                    } else {
+                        this.isEditing = false;
+                        this.formData = { id: null, name: '', path: '', component: '', permission_code: '', sort_order: 0, parent: '' };
+                    }
+                    this.isModalOpen = true;
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                closeModal() {
+                    this.isModalOpen = false;
+                    this.submitting = false;
+                },
+
+                async submitForm() {
+                    // 表单校验
+                    if (!this.formData.name.trim()) return alert("请填写菜单名称");
+
+                    this.submitting = true;
+                    try {
+                        // 构建提交负载
+                        const payload = {
+                            name: this.formData.name.trim(),
+                            path: this.formData.path.trim(),
+                            component: this.formData.component.trim(),
+                            permission_code: this.formData.permission_code.trim(),
+                            sort_order: Number(this.formData.sort_order) || 0,
+                            // 如果 parent 为空字符串，则提交为 null 表示顶级菜单
+                            parent: this.formData.parent === '' ? null : Number(this.formData.parent)
+                        };
+
+                        if (this.isEditing) {
+                            await window.API.updateMenu(this.formData.id, payload);
+                        } else {
+                            await window.API.createMenu(payload);
+                        }
+                        
+                        this.closeModal();
+                        this.showToast(this.isEditing ? '菜单已更新' : '菜单已创建');
+                        await this.initData(); // 刷新列表
+                    } catch (e) {
+                        console.error('保存失败:', e);
+                        alert('保存失败: ' + (e.message || '未知错误'));
+                        this.submitting = false;
+                    }
                 },
 
                 async deleteItem(menu) {
-                    if (!confirm(`确定要移除菜单 [${menu.name}] 吗？`)) return;
+                    if (!confirm(`确定要移除菜单 [${menu.name}] 吗？此操作可能会影响后台显示。`)) return;
                     try {
                         await window.API.deleteMenu(menu.id || menu._id);
                         this.showToast('菜单已移除');
                         await this.initData();
-                    } catch(e) { alert('删除失败: ' + e.message); }
+                    } catch(e) { 
+                        alert('删除失败: ' + (e.message || '未知错误')); 
+                    }
                 },
 
                 showToast(msg) {

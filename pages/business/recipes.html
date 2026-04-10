@@ -114,12 +114,12 @@
 
                         <td class="px-6 py-4 whitespace-nowrap text-right font-medium">
                             <div class="flex justify-end gap-2">
-                                <button @click="audit(recipe, 'rejected')" 
+                                <button @click="audit(recipe, 'reject')" 
                                         :disabled="recipe._isSubmitting"
                                         class="inline-flex items-center px-3 py-1.5 border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-md text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-500">
                                     <i data-lucide="x" class="w-3.5 h-3.5 mr-1"></i> 驳回
                                 </button>
-                                <button @click="audit(recipe, 'approved')" 
+                                <button @click="audit(recipe, 'pass')" 
                                         :disabled="recipe._isSubmitting"
                                         class="inline-flex items-center px-3 py-1.5 border border-green-200 text-green-700 bg-green-50 hover:bg-green-100 rounded-md text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-500">
                                     <i data-lucide="check" class="w-3.5 h-3.5 mr-1"></i> 通过
@@ -166,7 +166,7 @@
 
                 // 步骤 3 & 4：执行审核决策
                 async audit(recipe, result) {
-                    const actionName = result === 'approved' ? '通过' : '驳回';
+                    const actionName = result === 'pass' ? '通过' : '驳回';
                     
                     // 防误触二次确认
                     if (!confirm(`确定要【${actionName}】菜谱《${recipe.name}》的发布申请吗？`)) return;

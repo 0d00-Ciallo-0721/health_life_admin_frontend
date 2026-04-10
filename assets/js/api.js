@@ -177,4 +177,10 @@ window.API = {
     // 社区评论审核
     getComments: (search = '') => request(`/business/comments/?search=${encodeURIComponent(search)}`),
     deleteComment: (id) => request(`/business/comments/${id}/`, { method: 'DELETE' }),
+
+    // 社区风控与异常检测 (本次新增)
+    getSocialFeeds: (page = 1, pageSize = 20, search = '') => request(`/social/feeds/?page=${page}&page_size=${pageSize}&search=${encodeURIComponent(search)}`),
+    patchSocialFeed: (id, action) => request(`/social/feeds/${id}/`, { method: 'PATCH', body: JSON.stringify({ action }) }),
+    deleteSocialFeed: (id) => request(`/social/feeds/${id}/`, { method: 'DELETE' }),
+    getFollowsAnomaly: (limit = 50) => request(`/social/follows/anomaly/?limit=${limit}`)
 };

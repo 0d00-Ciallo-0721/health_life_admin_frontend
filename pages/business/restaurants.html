@@ -135,11 +135,11 @@
 
                         <div class="flex gap-4">
                             <div class="flex-1">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">纬度 (Latitude) <span class="text-red-500">*</span></label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">纬度 (Latitude)</label>
                                 <input type="number" step="0.000001" x-model.number="formData.latitude" placeholder="如: 31.230416" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm font-mono">
                             </div>
                             <div class="flex-1">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">经度 (Longitude) <span class="text-red-500">*</span></label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">经度 (Longitude)</label>
                                 <input type="number" step="0.000001" x-model.number="formData.longitude" placeholder="如: 121.473701" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm font-mono">
                             </div>
                         </div>
@@ -154,7 +154,7 @@
                                 <input type="number" x-model.number="formData.avg_price" placeholder="如: 65" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm">
                             </div>
                         </div>
-                        <p class="text-xs text-gray-400">经纬度信息用于小程序端测距和门店导航推荐，请尽量保证精确。</p>
+                        <p class="text-xs text-gray-400">经纬度信息用于小程序端测距和门店导航推荐，请尽量保证精确。如果不填，系统将使用默认配置或后续补全。</p>
                     </div>
                 </div>
                 
@@ -197,7 +197,7 @@
                     await this.fetchData();
                 },
 
-                // 步骤 1：加载商家数据
+                // 加载商家数据
                 async fetchData() {
                     this.loading = true;
                     try {
@@ -245,27 +245,32 @@
                     this.submitting = false;
                 },
 
-                // 步骤 3 & 4：拦截表单提交，执行 POST / PUT
+                // 拦截表单提交，执行 POST / PUT
                 async submitForm() {
-                    // 前端字段校验
+                    // 前端字段校验：移除经纬度拦截
                     if (!this.formData.name.trim()) return alert("请填写餐厅名称");
                     if (!this.formData.address.trim()) return alert("请填写详细地址");
-                    if (!this.formData.latitude || !this.formData.longitude) return alert("请完整填写经纬度坐标");
 
                     this.submitting = true;
                     try {
-                        // 构造发送给后端的 payload
+                        // 构造基础 payload
                         const payloadData = {
                             name: this.formData.name.trim(),
                             address: this.formData.address.trim(),
-                            latitude: parseFloat(this.formData.latitude),
-                            longitude: parseFloat(this.formData.longitude),
                             avg_price: parseFloat(this.formData.avg_price) || 0,
                             // 将逗号分隔的字符串转换为数组过滤空值发送给后端
                             tags: this.formData.tagsInput.split(',')
                                       .map(t => t.trim())
                                       .filter(Boolean)
                         };
+
+                        // 仅当用户填写了经纬度时，才向 payload 注入
+                        if (this.formData.latitude !== null && this.formData.latitude !== '') {
+                            payloadData.latitude = parseFloat(this.formData.latitude);
+                        }
+                        if (this.formData.longitude !== null && this.formData.longitude !== '') {
+                            payloadData.longitude = parseFloat(this.formData.longitude);
+                        }
 
                         if (this.isEditing) {
                             await window.API.updateRestaurant(this.formData.id, payloadData);

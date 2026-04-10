@@ -27,7 +27,7 @@
                 <i data-lucide="award" class="w-6 h-6 text-amber-500"></i>
                 游戏化成就字典
             </h1>
-            <p class="text-sm text-gray-500 mt-1">管理系统内的游戏化徽章配置及用户解锁条件设定。</p>
+            <p class="text-sm text-gray-500 mt-1">管理系统内的游戏化徽章配置库及成就奖励体系。</p>
         </div>
 
         <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
@@ -36,7 +36,7 @@
                 <input type="text" 
                        x-model="searchQuery" 
                        @keydown.enter="fetchData()"
-                       placeholder="搜索成就名称或描述..." 
+                       placeholder="搜索成就标题或描述..." 
                        class="w-full pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 shadow-sm transition-all">
             </div>
             
@@ -58,7 +58,7 @@
                 <tr>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">徽章</th>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">成就名称与描述</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">解锁条件 (Condition & Threshold)</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">分类与稀有度</th>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">奖励积分</th>
                     <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                 </tr>
@@ -75,33 +75,35 @@
                     <tr class="hover:bg-gray-50 transition-colors">
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center overflow-hidden">
-                                <template x-if="item.icon_url">
-                                    <img :src="item.icon_url" alt="icon" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                <template x-if="item.icon">
+                                    <img :src="item.icon" alt="icon" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                                 </template>
-                                <i data-lucide="award" class="w-6 h-6 text-amber-400" :class="{'hidden': item.icon_url}"></i>
+                                <i data-lucide="award" class="w-6 h-6 text-amber-400" :class="{'hidden': item.icon}"></i>
                             </div>
                         </td>
 
                         <td class="px-6 py-4">
-                            <div class="text-sm font-bold text-gray-900" x-text="item.name"></div>
-                            <div class="text-xs text-gray-500 mt-1 max-w-xs" x-text="item.description || item.desc || '暂无描述'"></div>
+                            <div class="text-sm font-bold text-gray-900" x-text="item.title"></div>
+                            <div class="text-xs text-gray-500 mt-1 max-w-xs" x-text="item.desc || '暂无描述'"></div>
                         </td>
 
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-2 mb-1">
                                 <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-100" 
-                                      x-text="getConditionLabel(item.condition_type)"></span>
-                                <span class="text-sm font-bold text-gray-700" x-text="`≥ ${item.threshold || 0}`"></span>
+                                      x-text="getCategoryLabel(item.category)"></span>
+                                <span class="px-2 py-0.5 rounded text-[11px] font-bold"
+                                      :class="getRarityStyle(item.rarity)"
+                                      x-text="getRarityLabel(item.rarity)"></span>
                             </div>
-                            <div class="text-[10px] text-gray-400 mt-1 font-mono" x-text="`Type: ${item.condition_type}`"></div>
+                            <div class="text-[10px] text-gray-400 font-mono" x-text="`Code: ${item.code}`"></div>
                         </td>
 
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="inline-flex items-center text-sm font-bold text-amber-500" x-show="item.points_reward > 0">
-                                +<span x-text="item.points_reward"></span>
+                            <span class="inline-flex items-center text-sm font-bold text-amber-500" x-show="item.points > 0">
+                                +<span x-text="item.points"></span>
                                 <i data-lucide="coins" class="w-3.5 h-3.5 ml-1"></i>
                             </span>
-                            <span class="text-sm text-gray-400" x-show="!item.points_reward || item.points_reward <= 0">无奖励</span>
+                            <span class="text-sm text-gray-400" x-show="!item.points || item.points <= 0">无奖励</span>
                         </td>
 
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -129,39 +131,50 @@
                     </div>
                     
                     <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">成就名称 <span class="text-red-500">*</span></label>
-                            <input type="text" x-model="formData.name" placeholder="如：坚持饮水30天" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm">
+                        <div class="flex gap-4">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">成就标题 (title) <span class="text-red-500">*</span></label>
+                                <input type="text" x-model="formData.title" placeholder="如：水之源泉" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm">
+                            </div>
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">成就编码 (code) <span class="text-red-500">*</span></label>
+                                <input type="text" x-model="formData.code" placeholder="如: ACH_WATER_01" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm font-mono text-sm">
+                            </div>
                         </div>
 
                         <div class="flex gap-4">
                             <div class="flex-1">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">条件判定 (condition_type) <span class="text-red-500">*</span></label>
-                                <select x-model="formData.condition_type" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm rounded-md border shadow-sm">
-                                    <template x-for="cond in conditionTypes" :key="cond.value">
-                                        <option :value="cond.value" x-text="cond.label"></option>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">所属分类 (category)</label>
+                                <select x-model="formData.category" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm rounded-md border shadow-sm">
+                                    <template x-for="cat in categories" :key="cat.value">
+                                        <option :value="cat.value" x-text="cat.label"></option>
                                     </template>
                                 </select>
                             </div>
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">稀有度 (rarity)</label>
+                                <select x-model="formData.rarity" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm rounded-md border shadow-sm">
+                                    <template x-for="r in rarities" :key="r.value">
+                                        <option :value="r.value" x-text="r.label"></option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-4">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">徽章图标链接 (icon)</label>
+                                <input type="text" x-model="formData.icon" placeholder="https://..." class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm font-mono text-xs">
+                            </div>
                             <div class="w-32">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">阈值 (threshold) <span class="text-red-500">*</span></label>
-                                <input type="number" x-model.number="formData.threshold" placeholder="如: 30" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">奖励积分 (points)</label>
+                                <input type="number" x-model.number="formData.points" placeholder="如: 100" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm">
                             </div>
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">徽章图标链接 (icon_url)</label>
-                            <input type="text" x-model="formData.icon_url" placeholder="https://..." class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm font-mono text-xs">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">奖励积分 (可选)</label>
-                            <input type="number" x-model.number="formData.points_reward" placeholder="如: 100" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">成就详细描述 <span class="text-red-500">*</span></label>
-                            <textarea x-model="formData.description" rows="2" placeholder="获得该成就的详细说明..." class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"></textarea>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">成就详细描述 (desc) <span class="text-red-500">*</span></label>
+                            <textarea x-model="formData.desc" rows="2" placeholder="展示给用户的详细说明..." class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"></textarea>
                         </div>
                     </div>
                 </div>
@@ -187,41 +200,64 @@
                 searchQuery: '',
                 toast: { show: false, message: '' },
                 
-                // 预定义成就解锁条件字典
-                conditionTypes: [
-                    { value: 'continuous_login', label: '连续登录天数' },
-                    { value: 'water_days', label: '累计饮水达标天数' },
-                    { value: 'diet_logs', label: '累计饮食记录次数' },
-                    { value: 'workout_duration', label: '累计运动时长(分钟)' },
-                    { value: 'healthy_score', label: '单日健康分达标' }
+                // 预定义成就分类字典
+                categories: [
+                    { value: 'diet', label: '饮食管理' },
+                    { value: 'water', label: '饮水打卡' },
+                    { value: 'exercise', label: '运动健身' },
+                    { value: 'social', label: '社区互动' },
+                    { value: 'special', label: '特殊专属' }
+                ],
+
+                // 预定义稀有度字典
+                rarities: [
+                    { value: 'common', label: '普通 (Common)' },
+                    { value: 'rare', label: '稀有 (Rare)' },
+                    { value: 'epic', label: '史诗 (Epic)' },
+                    { value: 'legendary', label: '传说 (Legendary)' }
                 ],
                 
                 isModalOpen: false,
                 isEditing: false,
                 submitting: false,
                 
-                // 表单数据模型 (严格按照任务卡要求的字段)
+                // 表单数据模型完全对齐文档
                 formData: { 
                     id: null, 
-                    name: '', 
-                    description: '', 
-                    condition_type: 'water_days', 
-                    threshold: null, 
-                    icon_url: '', 
-                    points_reward: 0 
+                    code: '', 
+                    title: '', 
+                    desc: '',
+                    category: 'special', 
+                    rarity: 'common', 
+                    icon: '', 
+                    points: 0 
                 },
 
                 async initData() {
                     await this.fetchData();
                 },
 
-                // 辅助方法：翻译条件类型
-                getConditionLabel(val) {
-                    const found = this.conditionTypes.find(c => c.value === val);
-                    return found ? found.label : val;
+                getCategoryLabel(val) {
+                    const found = this.categories.find(c => c.value === val);
+                    return found ? found.label : (val || '特殊');
                 },
 
-                // 步骤 1：加载成就字典数据
+                getRarityLabel(val) {
+                    const found = this.rarities.find(r => r.value === val);
+                    return found ? found.label.split(' ')[0] : '普通';
+                },
+
+                getRarityStyle(val) {
+                    const styles = {
+                        'common': 'bg-gray-100 text-gray-700 border border-gray-200',
+                        'rare': 'bg-blue-100 text-blue-700 border border-blue-200',
+                        'epic': 'bg-purple-100 text-purple-700 border border-purple-200',
+                        'legendary': 'bg-amber-100 text-amber-700 border border-amber-300 shadow-sm'
+                    };
+                    return styles[val] || styles['common'];
+                },
+
+                // 加载成就数据
                 async fetchData() {
                     this.loading = true;
                     try {
@@ -241,22 +277,22 @@
                 openModal(item = null) {
                     if (item) {
                         this.isEditing = true;
-                        // 兼容底层 ID 和描述字段的可能差异
                         this.formData = {
                             id: item.id || item._id,
-                            name: item.name || item.title || '',
-                            description: item.description || item.desc || '',
-                            condition_type: item.condition_type || 'water_days',
-                            threshold: item.threshold || 0,
-                            icon_url: item.icon_url || item.icon || '',
-                            points_reward: item.points_reward || item.points || 0
+                            code: item.code || '',
+                            title: item.title || item.name || '',
+                            desc: item.desc || item.description || '',
+                            category: item.category || 'special',
+                            rarity: item.rarity || 'common',
+                            icon: item.icon || item.icon_url || '',
+                            points: item.points || item.points_reward || 0
                         };
                     } else {
                         this.isEditing = false;
                         this.formData = { 
-                            id: null, name: '', description: '', 
-                            condition_type: 'water_days', threshold: null, 
-                            icon_url: '', points_reward: 0 
+                            id: null, code: '', title: '', desc: '', 
+                            category: 'special', rarity: 'common', 
+                            icon: '', points: 0 
                         };
                     }
                     this.isModalOpen = true;
@@ -268,23 +304,24 @@
                     this.submitting = false;
                 },
 
-                // 步骤 2 & 3：拦截表单提交，完成 POST / PUT 闭环
+                // 提交表单 (对齐契约)
                 async submitForm() {
                     // 前端字段校验
-                    if (!this.formData.name.trim()) return alert("请填写成就名称");
-                    if (!this.formData.description.trim()) return alert("请填写成就描述");
-                    if (this.formData.threshold === null || this.formData.threshold === '') return alert("请设置解锁阈值 (threshold)");
+                    if (!this.formData.title.trim()) return alert("请填写成就标题");
+                    if (!this.formData.code.trim()) return alert("请填写成就编码");
+                    if (!this.formData.desc.trim()) return alert("请填写成就描述");
 
                     this.submitting = true;
                     try {
-                        // 构造纯净的 payload，确保类型正确
+                        // 构造符合文档的新版 Payload
                         const payloadData = {
-                            name: this.formData.name.trim(),
-                            description: this.formData.description.trim(),
-                            condition_type: this.formData.condition_type,
-                            threshold: Number(this.formData.threshold),
-                            icon_url: this.formData.icon_url.trim(),
-                            points_reward: Number(this.formData.points_reward) || 0
+                            code: this.formData.code.trim(),
+                            title: this.formData.title.trim(),
+                            desc: this.formData.desc.trim(),
+                            category: this.formData.category,
+                            rarity: this.formData.rarity,
+                            icon: this.formData.icon.trim(),
+                            points: Number(this.formData.points) || 0
                         };
 
                         if (this.isEditing) {
@@ -293,7 +330,7 @@
                             await window.API.createAchievement(payloadData);
                         }
                         
-                        // 成功后关闭弹窗并无刷新更新 DOM (重新 fetch)
+                        // 成功后关闭弹窗并无刷新更新 DOM
                         this.closeModal();
                         await this.fetchData(); 
                         this.showToast(this.isEditing ? '成就已更新' : '成就创建成功');
@@ -306,7 +343,7 @@
 
                 // 删除成就逻辑
                 async deleteItem(item) {
-                    if (!confirm(`确定要彻底删除成就 [${item.name || item.title}] 吗？此操作不可逆。`)) return;
+                    if (!confirm(`确定要彻底删除成就 [${item.title || item.name}] 吗？此操作不可逆。`)) return;
                     try {
                         const targetId = item.id || item._id;
                         await window.API.deleteAchievement(targetId);

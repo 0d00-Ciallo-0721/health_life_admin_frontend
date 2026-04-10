@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="../../assets/js/api.js"></script>
 </head>
 <body class="bg-transparent p-2 sm:p-6 text-gray-800 font-sans" x-data="feedsApp()" x-init="initData()">
 
@@ -117,20 +118,13 @@
                 async fetchFeeds() {
                     this.loading = true;
                     try {
-                        const token = localStorage.getItem('access_token');
-                        // 真实接口调用
-                        // const res = await fetch(`/api/admin/v1/business/feeds/?search=${this.searchQuery}`, {
-                        //     headers: { 'Authorization': `Bearer ${token}` }
-                        // }).then(r => r.json());
-                        // this.feeds = res.data.list || res.data;
-                        
-                        // Mock 数据供预览
-                        this.feeds = [
-                            { id: '65f1a2b3c4d5e6f7a8b9c0d1', user_info: { nickname: '减脂达人', avatar: '' }, content: '今天吃了欺骗餐，罪恶感拉满，不知道会不会反弹...推荐这家炸鸡店，真的太好吃了！', images: ['https://picsum.photos/200'], created_at: new Date().toISOString(), likes_count: 45, comments_count: 12, is_hidden: false },
-                            { id: '65f1a2b3c4d5e6f7a8b9c0d2', user_info: { nickname: '营养师小王', avatar: '' }, content: '【广告】私教课程特惠，加我微信免费咨询减脂计划！', images: [], created_at: new Date(Date.now() - 86400000).toISOString(), likes_count: 2, comments_count: 0, is_hidden: false }
-                        ];
+                        // 使用真实 API 调用获取风控动态
+                        const res = await window.API.getSocialFeeds(1, 50, this.searchQuery);
+                        // 兼容各种可能的数据包装格式
+                        this.feeds = res?.data?.list || res?.data || res?.results || [];
                     } catch (e) {
                         console.error('获取动态失败', e);
+                        alert('获取动态失败: ' + (e.message || '请检查网络'));
                     } finally {
                         this.loading = false;
                         this.$nextTick(() => lucide.createIcons());
@@ -140,16 +134,21 @@
                 async deleteFeed(id) {
                     if (!confirm("确定要彻底删除该条动态吗？对应的评论也将一并删除。")) return;
                     try {
-                        // await fetch(`/api/admin/v1/business/feeds/${id}/`, { method: 'DELETE', headers: { ... } });
+                        await window.API.deleteSocialFeed(id);
                         this.feeds = this.feeds.filter(f => f.id !== id);
-                        alert('删除成功');
-                    } catch (e) { alert('删除失败'); }
+                    } catch (e) {
+                        alert('删除失败: ' + (e.message || '未知错误'));
+                    }
                 },
 
                 async hideFeed(feed) {
                     if (!confirm("确定要隐藏该条动态吗？")) return;
-                    feed.is_hidden = true;
-                    this.$nextTick(() => lucide.createIcons());
+                    try {
+                        await window.API.patchSocialFeed(feed.id, 'hide');
+                        feed.is_hidden = true;
+                    } catch (e) {
+                        alert('隐藏失败: ' + (e.message || '未知错误'));
+                    }
                 },
 
                 formatDate(dateString) {
