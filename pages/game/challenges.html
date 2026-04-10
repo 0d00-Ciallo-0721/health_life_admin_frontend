@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>挑战任务管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script src="../../assets/js/config.js"></script>
+    <script src="../../assets/js/utils.js"></script>
+    <script src="../../assets/js/api.js"></script>
+</head>
+<body class="bg-gray-50 p-4 sm:p-8 text-gray-800 font-sans min-h-screen" x-data="tasksApp()" x-init="initTasks()">
+
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-gray-200 pb-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                <i data-lucide="target" class="w-6 h-6 text-teal-600"></i>
+                健康挑战任务
+            </h1>
+            <p class="text-sm text-gray-500 mt-1">配置游戏化模块的日常任务规则及积分奖励体系。</p>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+            <div class="relative w-full sm:w-64">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                <input type="text" 
+                       x-model="searchQuery" 
+                       @keydown.enter="fetchTasks()"
+                       placeholder="搜索任务标题或描述..." 
+                       class="w-full pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 shadow-sm transition-all">
+            </div>
+
+            <select x-model="searchType" @change="fetchTasks()" class="w-full sm:w-40 pl-3 pr-8 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 shadow-sm transition-all">
+                <option value="">全部类型</option>
+                <template x-for="type in taskTypes" :key="type.value">
+                    <option :value="type.value" x-text="type.label"></option>
+                </template>
+            </select>
+            
+            <button @click="openModal()" class="w-full sm:w-auto inline-flex justify-center items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-colors">
+                <i data-lucide="plus" class="w-4 h-4 mr-1.5"></i>
+                新增任务
+            </button>
+        </div>
+    </div>
+
+    <div class="bg-white shadow-sm rounded-lg overflow-hidden border border-gray-200">
+        <div x-show="loading" class="p-12 text-center">
+            <i data-lucide="loader-2" class="w-8 h-8 text-teal-500 animate-spin mx-auto mb-4"></i>
+            <p class="text-gray-500 text-sm">正在加载任务数据...</p>
+        </div>
+
+        <table class="min-w-full divide-y divide-gray-200" x-show="!loading">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID / 任务类型</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">任务信息</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">目标数值</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">奖励积分</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                <tr x-show="tasks.length === 0">
+                    <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                        <i data-lucide="inbox" class="w-12 h-12 text-gray-300 mx-auto mb-3"></i>
+                        当前条件暂无任务数据
+                    </td>
+                </tr>
+
+                <template x-for="task in tasks" :key="task.id">
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-xs text-gray-400 mb-1" x-text="`#${task.id}`"></div>
+                            <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-md"
+                                  :class="getTypeStyle(task.task_type)"
+                                  x-text="getTypeLabel(task.task_type)">
+                            </span>
+                        </td>
+                        
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-medium text-gray-900" x-text="task.title"></div>
+                            <div class="text-xs text-gray-500 mt-1 max-w-xs truncate" :title="task.description" x-text="task.description"></div>
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium" x-text="task.target_value"></td>
+                        
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="inline-flex items-center text-sm font-bold text-amber-500">
+                                +<span x-text="task.points_reward"></span>
+                                <i data-lucide="coins" class="w-3.5 h-3.5 ml-1"></i>
+                            </span>
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                                  :class="task.is_active !== false ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
+                                  x-text="task.is_active !== false ? '生效中' : '已停用'">
+                            </span>
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button @click="openModal(task)" class="text-indigo-600 hover:text-indigo-900 mr-3 transition-colors">编辑</button>
+                            <button @click="deleteTask(task)" class="text-red-600 hover:text-red-900 transition-colors">删除</button>
+                        </td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+
+    <div x-show="isModalOpen" style="display: none;" class="fixed z-10 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div x-show="isModalOpen" @click="closeModal()" x-transition.opacity class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            
+            <div x-show="isModalOpen" x-transition class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="flex items-center gap-3 mb-5 border-b pb-3">
+                        <div class="bg-teal-100 p-2 rounded-full">
+                            <i data-lucide="target" class="w-5 h-5 text-teal-600"></i>
+                        </div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title" x-text="isEditing ? '编辑挑战任务' : '新增挑战任务'"></h3>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">任务类型 <span class="text-red-500">*</span></label>
+                            <select x-model="formData.task_type" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm rounded-md border shadow-sm">
+                                <template x-for="type in taskTypes" :key="type.value">
+                                    <option :value="type.value" x-text="type.label"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">任务标题 <span class="text-red-500">*</span></label>
+                            <input type="text" x-model="formData.title" placeholder="如：每日畅饮 2000ml" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm">
+                        </div>
+
+                        <div class="flex gap-4">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">目标数值 (target_value) <span class="text-red-500">*</span></label>
+                                <input type="number" x-model.number="formData.target_value" placeholder="如: 2000" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm">
+                            </div>
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">奖励积分 (points_reward) <span class="text-red-500">*</span></label>
+                                <input type="number" x-model.number="formData.points_reward" placeholder="如: 20" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">任务描述 <span class="text-red-500">*</span></label>
+                            <textarea x-model="formData.description" rows="3" placeholder="详细说明任务的要求..." class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm"></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200">
+                    <button type="button" @click="submitForm()" :disabled="submitting" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-teal-600 text-base font-medium text-white hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 transition-colors">
+                        <span x-show="!submitting">保存提交</span>
+                        <span x-show="submitting" class="flex items-center"><i data-lucide="loader-2" class="w-4 h-4 animate-spin mr-2"></i>处理中...</span>
+                    </button>
+                    <button type="button" @click="closeModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors">
+                        取消
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function tasksApp() {
+            return {
+                tasks: [],
+                loading: false,
+                searchQuery: '',
+                searchType: '',
+                
+                // 任务分类定义
+                taskTypes: [
+                    { value: 'diet', label: '饮食记录' },
+                    { value: 'water', label: '饮水打卡' },
+                    { value: 'exercise', label: '运动锻炼' },
+                    { value: 'other', label: '其他常规' }
+                ],
+                
+                isModalOpen: false,
+                isEditing: false,
+                submitting: false,
+                formData: { id: null, task_type: 'water', title: '', description: '', target_value: 0, points_reward: 10 },
+
+                async initTasks() {
+                    await this.fetchTasks();
+                },
+
+                // 辅助方法：获取类型的中文标签
+                getTypeLabel(val) {
+                    const found = this.taskTypes.find(t => t.value === val);
+                    return found ? found.label : val;
+                },
+
+                // 辅助方法：获取类型的徽章颜色
+                getTypeStyle(val) {
+                    const styles = {
+                        'diet': 'bg-orange-100 text-orange-800 border border-orange-200',
+                        'water': 'bg-blue-100 text-blue-800 border border-blue-200',
+                        'exercise': 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                    };
+                    return styles[val] || 'bg-gray-100 text-gray-800 border border-gray-200';
+                },
+
+                // 核心业务：拉取数据列表 (支持 search 和 type 筛选)
+                async fetchTasks() {
+                    this.loading = true;
+                    try {
+                        const payload = await window.API.getTasks(this.searchQuery, this.searchType);
+                        const list = payload?.data?.list || payload?.data || payload?.results || [];
+                        this.tasks = list;
+                    } catch (error) {
+                        console.error('获取任务列表失败:', error);
+                        alert('获取任务列表失败: ' + (error.message || '未知错误'));
+                    } finally {
+                        this.loading = false;
+                        this.$nextTick(() => lucide.createIcons());
+                    }
+                },
+
+                // 打开弹窗
+                openModal(task = null) {
+                    if (task) {
+                        this.isEditing = true;
+                        this.formData = {
+                            id: task.id,
+                            task_type: task.task_type || 'other',
+                            title: task.title || '',
+                            description: task.description || task.desc || '', // 兼容可能存在的desc字段
+                            target_value: task.target_value || 0,
+                            points_reward: task.points_reward || 0
+                        };
+                    } else {
+                        this.isEditing = false;
+                        // 新增时默认选中当前过滤的类型
+                        const defaultType = this.searchType || 'water';
+                        this.formData = { id: null, task_type: defaultType, title: '', description: '', target_value: null, points_reward: 10 };
+                    }
+                    this.isModalOpen = true;
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                // 关闭弹窗
+                closeModal() {
+                    this.isModalOpen = false;
+                    this.submitting = false;
+                },
+
+                // 提交表单 (新增/更新)
+                async submitForm() {
+                    // 前端字段校验
+                    if (!this.formData.title.trim()) return alert("请填写任务标题");
+                    if (!this.formData.description.trim()) return alert("请填写任务描述");
+                    if (this.formData.target_value === null || this.formData.target_value === '') return alert("请设置目标数值");
+                    if (this.formData.points_reward === null || this.formData.points_reward === '') return alert("请设置奖励积分");
+
+                    this.submitting = true;
+                    try {
+                        if (this.isEditing) {
+                            await window.API.updateTask(this.formData.id, this.formData);
+                        } else {
+                            await window.API.createTask(this.formData);
+                        }
+                        
+                        this.closeModal();
+                        await this.fetchTasks(); // 提交成功后重新刷新列表
+                        
+                        if (typeof window.showToast === 'function') {
+                            window.showToast(this.isEditing ? '任务更新成功' : '任务创建成功', 'success');
+                        }
+                    } catch (error) {
+                        console.error('保存任务失败:', error);
+                        alert(error.message || '保存失败，请检查填写内容');
+                        this.submitting = false;
+                    }
+                },
+
+                // 安全删除任务
+                async deleteTask(task) {
+                    // 步骤 3：带二次确认的防误触机制
+                    if (!confirm(`确定要彻底删除任务 [${task.title}] 吗？此操作不可恢复！`)) return;
+                    
+                    try {
+                        await window.API.deleteTask(task.id);
+                        await this.fetchTasks(); // 删除成功后刷新
+                        
+                        if (typeof window.showToast === 'function') {
+                            window.showToast('任务已删除', 'success');
+                        }
+                    } catch (error) {
+                        console.error('删除失败:', error);
+                        alert('删除失败: ' + (error.message || '未知错误'));
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

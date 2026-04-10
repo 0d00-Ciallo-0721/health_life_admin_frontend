@@ -7,144 +7,174 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script src="../../assets/js/config.js"></script>
+    <script src="../../assets/js/utils.js"></script>
     <script src="../../assets/js/api.js"></script>
 </head>
-<body class="bg-transparent p-2 sm:p-6 text-gray-800 font-sans" x-data="achievementsApp()" x-init="initData()">
+<body class="bg-gray-50 p-4 sm:p-8 text-gray-800 font-sans min-h-screen" x-data="achievementsApp()" x-init="initData()">
 
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+    <div x-show="toast.show" x-transition.opacity.duration.300ms
+         class="fixed top-5 left-1/2 transform -translate-x-1/2 z-50 flex items-center p-4 mb-4 text-sm text-green-800 border border-green-300 rounded-lg bg-green-50 shadow-md" 
+         style="display: none;">
+        <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>
+        <span class="font-medium" x-text="toast.message"></span>
+    </div>
+
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-gray-200 pb-4">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900 tracking-tight">成就字典</h1>
-            <p class="text-sm text-gray-500 mt-1">管理系统内的游戏化徽章配置及用户解锁热度统计。</p>
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                <i data-lucide="award" class="w-6 h-6 text-amber-500"></i>
+                游戏化成就字典
+            </h1>
+            <p class="text-sm text-gray-500 mt-1">管理系统内的游戏化徽章配置及用户解锁条件设定。</p>
         </div>
 
-        <div class="flex items-center gap-3 w-full sm:w-auto">
+        <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
             <div class="relative w-full sm:w-64">
                 <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
-                <input type="text" x-model="searchQuery" @keyup.debounce.500ms="fetchData()"
-                    class="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all shadow-sm text-sm"
-                    placeholder="搜索成就名称或代码...">
+                <input type="text" 
+                       x-model="searchQuery" 
+                       @keydown.enter="fetchData()"
+                       placeholder="搜索成就名称或描述..." 
+                       class="w-full pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 shadow-sm transition-all">
             </div>
-            <button @click="openModal()" class="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-[0_4px_14px_0_rgba(245,158,11,0.39)] hover:shadow-[0_6px_20px_rgba(245,158,11,0.23)] hover:-translate-y-0.5 transition-all flex items-center">
-                <i data-lucide="plus" class="w-4 h-4 mr-2"></i> 新增徽章
+            
+            <button @click="openModal()" class="w-full sm:w-auto inline-flex justify-center items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors">
+                <i data-lucide="plus" class="w-4 h-4 mr-1.5"></i>
+                新增成就
             </button>
         </div>
     </div>
 
-    <div class="bg-white rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] border border-gray-100/80 overflow-hidden relative">
-        <div x-show="loading" class="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex items-center justify-center">
-            <i data-lucide="loader-2" class="w-8 h-8 animate-spin text-amber-500"></i>
+    <div class="bg-white shadow-sm rounded-lg overflow-hidden border border-gray-200">
+        <div x-show="loading" class="p-12 text-center">
+            <i data-lucide="loader-2" class="w-8 h-8 text-amber-500 animate-spin mx-auto mb-4"></i>
+            <p class="text-gray-500 text-sm">正在加载成就数据...</p>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-gray-50/80 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-100">
-                        <th class="px-6 py-4 font-semibold">徽章视觉与名称</th>
-                        <th class="px-6 py-4 font-semibold">唯一代码 (Code)</th>
-                        <th class="px-6 py-4 font-semibold">属性收益</th>
-                        <th class="px-6 py-4 font-semibold">全站解锁进度</th>
-                        <th class="px-6 py-4 font-semibold text-right">操作</th>
+        <table class="min-w-full divide-y divide-gray-200" x-show="!loading">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">徽章</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">成就名称与描述</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">解锁条件 (Condition & Threshold)</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">奖励积分</th>
+                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                <tr x-show="items.length === 0">
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                        <i data-lucide="medal" class="w-12 h-12 text-gray-300 mx-auto mb-3"></i>
+                        没有找到匹配的成就徽章
+                    </td>
+                </tr>
+
+                <template x-for="item in items" :key="item.id || item._id">
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center overflow-hidden">
+                                <template x-if="item.icon_url">
+                                    <img :src="item.icon_url" alt="icon" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                </template>
+                                <i data-lucide="award" class="w-6 h-6 text-amber-400" :class="{'hidden': item.icon_url}"></i>
+                            </div>
+                        </td>
+
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-bold text-gray-900" x-text="item.name"></div>
+                            <div class="text-xs text-gray-500 mt-1 max-w-xs" x-text="item.description || item.desc || '暂无描述'"></div>
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-100" 
+                                      x-text="getConditionLabel(item.condition_type)"></span>
+                                <span class="text-sm font-bold text-gray-700" x-text="`≥ ${item.threshold || 0}`"></span>
+                            </div>
+                            <div class="text-[10px] text-gray-400 mt-1 font-mono" x-text="`Type: ${item.condition_type}`"></div>
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="inline-flex items-center text-sm font-bold text-amber-500" x-show="item.points_reward > 0">
+                                +<span x-text="item.points_reward"></span>
+                                <i data-lucide="coins" class="w-3.5 h-3.5 ml-1"></i>
+                            </span>
+                            <span class="text-sm text-gray-400" x-show="!item.points_reward || item.points_reward <= 0">无奖励</span>
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button @click="openModal(item)" class="text-indigo-600 hover:text-indigo-900 mr-4 transition-colors">编辑</button>
+                            <button @click="deleteItem(item)" class="text-red-600 hover:text-red-900 transition-colors">删除</button>
+                        </td>
                     </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
-                    <template x-for="item in list" :key="item.id">
-                        <tr class="hover:bg-amber-50/20 transition-colors group">
-                            <td class="px-6 py-4">
-                                <div class="flex items-center gap-4">
-                                    <div class="relative flex-shrink-0">
-                                        <div class="absolute inset-0 bg-amber-400 blur-md opacity-20 group-hover:opacity-40 transition-opacity rounded-full"></div>
-                                        <div class="w-12 h-12 relative rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center border border-amber-200/50 shadow-sm z-10 overflow-hidden">
-                                            <template x-if="item.icon"><img :src="item.icon" class="w-full h-full object-cover"></template>
-                                            <template x-if="!item.icon"><i data-lucide="award" class="w-6 h-6 text-amber-500"></i></template>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="text-sm font-extrabold text-gray-900" x-text="item.title"></div>
-                                        <div class="text-xs text-gray-500 mt-1 line-clamp-1 max-w-[200px]" x-text="item.desc"></div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4">
-                                <span class="px-2.5 py-1 bg-gray-50 border border-gray-200 text-gray-500 font-mono text-xs rounded-md" x-text="item.code"></span>
-                            </td>
-                            <td class="px-6 py-4">
-                                <div class="flex flex-col gap-1.5">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-purple-50 text-purple-600 border border-purple-100 w-fit" x-text="item.category || '通用'"></span>
-                                    <span class="text-xs text-amber-600 font-bold flex items-center">
-                                        <i data-lucide="coins" class="w-3 h-3 mr-1"></i>
-                                        +<span x-text="item.points || 0"></span> PTS
-                                    </span>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4">
-                                <div class="flex flex-col gap-1.5">
-                                    <div class="flex items-center justify-between text-xs">
-                                        <span class="font-medium text-gray-700"><span x-text="item.unlocked_count || 0"></span> 人已获</span>
-                                    </div>
-                                    <div class="w-32 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                        <div class="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full" 
-                                             :style="`width: ${Math.min(((item.unlocked_count || 0) / 1000) * 100, 100)}%`"></div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 text-right">
-                                <div class="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button @click="openModal(item)" class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
-                                    <button @click="deleteItem(item.id)" class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                                </div>
-                            </td>
-                        </tr>
-                    </template>
-                    <tr x-show="!loading && list.length === 0">
-                        <td colspan="5" class="px-6 py-12 text-center text-gray-500 text-sm">暂无成就数据</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+                </template>
+            </tbody>
+        </table>
     </div>
 
-    <div x-show="isModalOpen" style="display: none;" class="fixed inset-0 z-50 flex items-center justify-center pointer-events-auto">
-        <div x-show="isModalOpen" x-transition.opacity.duration.300ms class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm" @click="closeModal()"></div>
-        <div x-show="isModalOpen" x-transition class="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden flex flex-col">
-            <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                <h3 class="text-lg font-bold text-gray-900" x-text="isEditing ? '编辑成就' : '新增成就'"></h3>
-                <button @click="closeModal()" class="text-gray-400 hover:text-gray-600 hover:bg-gray-200/50 p-2 rounded-xl transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
-            </div>
-            <form @submit.prevent="submitForm" class="p-6 space-y-5 flex-1 overflow-y-auto max-h-[70vh]">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5">成就名称 <span class="text-red-500">*</span></label>
-                    <input type="text" x-model="form.title" required class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">唯一代码 <span class="text-red-500">*</span></label>
-                        <input type="text" x-model="form.code" :disabled="isEditing" required class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm disabled:bg-gray-100">
+    <div x-show="isModalOpen" style="display: none;" class="fixed z-10 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div x-show="isModalOpen" @click="closeModal()" x-transition.opacity class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            
+            <div x-show="isModalOpen" x-transition class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="flex items-center gap-3 mb-5 border-b pb-3">
+                        <div class="bg-amber-100 p-2 rounded-full">
+                            <i data-lucide="medal" class="w-5 h-5 text-amber-600"></i>
+                        </div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title" x-text="isEditing ? '编辑成就徽章' : '新增成就徽章'"></h3>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">奖励积分</label>
-                        <input type="number" x-model.number="form.points" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm">
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">成就名称 <span class="text-red-500">*</span></label>
+                            <input type="text" x-model="formData.name" placeholder="如：坚持饮水30天" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm">
+                        </div>
+
+                        <div class="flex gap-4">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">条件判定 (condition_type) <span class="text-red-500">*</span></label>
+                                <select x-model="formData.condition_type" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm rounded-md border shadow-sm">
+                                    <template x-for="cond in conditionTypes" :key="cond.value">
+                                        <option :value="cond.value" x-text="cond.label"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div class="w-32">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">阈值 (threshold) <span class="text-red-500">*</span></label>
+                                <input type="number" x-model.number="formData.threshold" placeholder="如: 30" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">徽章图标链接 (icon_url)</label>
+                            <input type="text" x-model="formData.icon_url" placeholder="https://..." class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm font-mono text-xs">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">奖励积分 (可选)</label>
+                            <input type="number" x-model.number="formData.points_reward" placeholder="如: 100" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">成就详细描述 <span class="text-red-500">*</span></label>
+                            <textarea x-model="formData.description" rows="2" placeholder="获得该成就的详细说明..." class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"></textarea>
+                        </div>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">所属类别</label>
-                        <input type="text" x-model="form.category" placeholder="如: 社交互动, 减脂" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">图标 URL</label>
-                        <input type="text" x-model="form.icon" placeholder="http://..." class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm">
-                    </div>
+                
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200">
+                    <button type="button" @click="submitForm()" :disabled="submitting" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-amber-600 text-base font-medium text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 transition-colors">
+                        <span x-show="!submitting">保存提交</span>
+                        <span x-show="submitting" class="flex items-center"><i data-lucide="loader-2" class="w-4 h-4 animate-spin mr-2"></i>处理中...</span>
+                    </button>
+                    <button type="button" @click="closeModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors">
+                        取消
+                    </button>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5">成就描述</label>
-                    <textarea x-model="form.desc" rows="3" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm resize-none"></textarea>
-                </div>
-            </form>
-            <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-white">
-                <button type="button" @click="closeModal()" class="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors text-sm font-medium">取消</button>
-                <button type="button" @click="submitForm()" class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-all shadow-md shadow-amber-500/20 text-sm font-medium flex items-center">
-                    <span x-text="isEditing ? '保存修改' : '确认创建'"></span>
-                </button>
             </div>
         </div>
     </div>
@@ -152,51 +182,146 @@
     <script>
         function achievementsApp() {
             return {
-                list: [], loading: false, searchQuery: '',
-                isModalOpen: false, isEditing: false, currentId: null,
-                form: { title: '', code: '', desc: '', icon: '', points: 0, category: '' },
+                items: [],
+                loading: false,
+                searchQuery: '',
+                toast: { show: false, message: '' },
+                
+                // 预定义成就解锁条件字典
+                conditionTypes: [
+                    { value: 'continuous_login', label: '连续登录天数' },
+                    { value: 'water_days', label: '累计饮水达标天数' },
+                    { value: 'diet_logs', label: '累计饮食记录次数' },
+                    { value: 'workout_duration', label: '累计运动时长(分钟)' },
+                    { value: 'healthy_score', label: '单日健康分达标' }
+                ],
+                
+                isModalOpen: false,
+                isEditing: false,
+                submitting: false,
+                
+                // 表单数据模型 (严格按照任务卡要求的字段)
+                formData: { 
+                    id: null, 
+                    name: '', 
+                    description: '', 
+                    condition_type: 'water_days', 
+                    threshold: null, 
+                    icon_url: '', 
+                    points_reward: 0 
+                },
 
-                async initData() { await this.fetchData(); },
+                async initData() {
+                    await this.fetchData();
+                },
 
+                // 辅助方法：翻译条件类型
+                getConditionLabel(val) {
+                    const found = this.conditionTypes.find(c => c.value === val);
+                    return found ? found.label : val;
+                },
+
+                // 步骤 1：加载成就字典数据
                 async fetchData() {
                     this.loading = true;
                     try {
-                        const res = await window.API.getAchievements(this.searchQuery);
-                        this.list = res.data?.results || res.data || [];
-                    } catch (e) { alert(e.message); } finally {
-                        this.loading = false; this.$nextTick(() => lucide.createIcons());
+                        const payload = await window.API.getAchievements(this.searchQuery);
+                        const list = payload?.data?.list || payload?.data || payload?.results || [];
+                        this.items = list;
+                    } catch (e) {
+                        console.error('获取成就失败:', e);
+                        alert('获取成就数据失败: ' + (e.message || '未知错误'));
+                    } finally {
+                        this.loading = false;
+                        this.$nextTick(() => lucide.createIcons());
                     }
                 },
 
+                // 打开模态框，处理数据回显
                 openModal(item = null) {
                     if (item) {
-                        this.isEditing = true; this.currentId = item.id;
-                        this.form = { title: item.title, code: item.code, desc: item.desc, icon: item.icon || '', points: item.points || 0, category: item.category || '' };
+                        this.isEditing = true;
+                        // 兼容底层 ID 和描述字段的可能差异
+                        this.formData = {
+                            id: item.id || item._id,
+                            name: item.name || item.title || '',
+                            description: item.description || item.desc || '',
+                            condition_type: item.condition_type || 'water_days',
+                            threshold: item.threshold || 0,
+                            icon_url: item.icon_url || item.icon || '',
+                            points_reward: item.points_reward || item.points || 0
+                        };
                     } else {
-                        this.isEditing = false; this.currentId = null;
-                        this.form = { title: '', code: '', desc: '', icon: '', points: 0, category: '通用' };
+                        this.isEditing = false;
+                        this.formData = { 
+                            id: null, name: '', description: '', 
+                            condition_type: 'water_days', threshold: null, 
+                            icon_url: '', points_reward: 0 
+                        };
                     }
                     this.isModalOpen = true;
+                    this.$nextTick(() => lucide.createIcons());
                 },
 
-                closeModal() { this.isModalOpen = false; },
+                closeModal() {
+                    this.isModalOpen = false;
+                    this.submitting = false;
+                },
 
+                // 步骤 2 & 3：拦截表单提交，完成 POST / PUT 闭环
                 async submitForm() {
-                    if(!this.form.title || !this.form.code) return alert("名称和代码必填");
+                    // 前端字段校验
+                    if (!this.formData.name.trim()) return alert("请填写成就名称");
+                    if (!this.formData.description.trim()) return alert("请填写成就描述");
+                    if (this.formData.threshold === null || this.formData.threshold === '') return alert("请设置解锁阈值 (threshold)");
+
+                    this.submitting = true;
                     try {
-                        if (this.isEditing) await window.API.updateAchievement(this.currentId, this.form);
-                        else await window.API.createAchievement(this.form);
+                        // 构造纯净的 payload，确保类型正确
+                        const payloadData = {
+                            name: this.formData.name.trim(),
+                            description: this.formData.description.trim(),
+                            condition_type: this.formData.condition_type,
+                            threshold: Number(this.formData.threshold),
+                            icon_url: this.formData.icon_url.trim(),
+                            points_reward: Number(this.formData.points_reward) || 0
+                        };
+
+                        if (this.isEditing) {
+                            await window.API.updateAchievement(this.formData.id, payloadData);
+                        } else {
+                            await window.API.createAchievement(payloadData);
+                        }
+                        
+                        // 成功后关闭弹窗并无刷新更新 DOM (重新 fetch)
                         this.closeModal();
-                        await this.fetchData();
-                    } catch (e) { alert('保存失败: ' + e.message); }
+                        await this.fetchData(); 
+                        this.showToast(this.isEditing ? '成就已更新' : '成就创建成功');
+                    } catch (e) {
+                        console.error('保存失败:', e);
+                        alert(e.message || '保存失败，请检查填写内容');
+                        this.submitting = false;
+                    }
                 },
 
-                async deleteItem(id) {
-                    if (!confirm('确定要彻底删除该成就吗？')) return;
+                // 删除成就逻辑
+                async deleteItem(item) {
+                    if (!confirm(`确定要彻底删除成就 [${item.name || item.title}] 吗？此操作不可逆。`)) return;
                     try {
-                        await window.API.deleteAchievement(id);
-                        await this.fetchData();
-                    } catch (e) { alert('删除失败: ' + e.message); }
+                        const targetId = item.id || item._id;
+                        await window.API.deleteAchievement(targetId);
+                        this.showToast('成就已删除');
+                        await this.fetchData(); // 删除成功后更新 DOM
+                    } catch (e) {
+                        alert('删除失败: ' + (e.message || '未知错误'));
+                    }
+                },
+
+                // 显示 Toast
+                showToast(msg) {
+                    this.toast.message = msg;
+                    this.toast.show = true;
+                    setTimeout(() => { this.toast.show = false; }, 3000);
                 }
             }
         }

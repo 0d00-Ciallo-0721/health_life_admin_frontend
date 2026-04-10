@@ -3,54 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>菜单管理</title>
+    <title>菜单树管理</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    
     <script src="../../assets/js/config.js"></script>
     <script src="../../assets/js/utils.js"></script>
     <script src="../../assets/js/api.js"></script>
 </head>
-<body class="bg-transparent p-2 sm:p-6 text-gray-800 font-sans" x-data="menuApp()" x-init="initData()">
+<body class="bg-gray-50 p-4 sm:p-8 text-gray-800 font-sans min-h-screen" x-data="menuApp()" x-init="initData()">
 
-    <div class="flex justify-between items-end mb-6 border-b border-gray-200 pb-4">
+    <div x-show="toast.show" x-transition.opacity
+         class="fixed top-5 left-1/2 transform -translate-x-1/2 z-50 flex items-center p-4 mb-4 text-sm text-green-800 border border-green-300 rounded-lg bg-green-50 shadow-md" style="display: none;">
+        <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>
+        <span class="font-medium" x-text="toast.message"></span>
+    </div>
+
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-gray-200 pb-4">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900 tracking-tight">系统菜单设置</h1>
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                <i data-lucide="list-tree" class="w-6 h-6 text-indigo-600"></i>
+                系统菜单设置
+            </h1>
             <p class="text-sm text-gray-500 mt-1">管理系统左侧侧边栏的路由项与操作级权限标识 (Permission Code)。</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <button @click="openModal()" class="inline-flex justify-center items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 transition-colors">
+                <i data-lucide="plus" class="w-4 h-4 mr-1.5"></i>新增主菜单
+            </button>
         </div>
     </div>
 
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="px-6 py-4 bg-gray-50/50 border-b border-gray-100 flex font-bold text-sm text-gray-600">
-            <div class="flex-1">菜单结构 (Name)</div>
-            <div class="w-48">权限标识 (Code)</div>
-            <div class="w-48">路由路径 (Path)</div>
-            <div class="w-20 text-center">排序</div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="flex items-center px-6 py-3 bg-gray-50 border-b border-gray-200">
+            <div class="flex-1 text-xs font-medium text-gray-500 uppercase tracking-wider">菜单名称</div>
+            <div class="w-48 text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:block">权限标识 (Code)</div>
+            <div class="w-48 text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:block">路由路径 (Path)</div>
+            <div class="w-20 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">排序</div>
+            <div class="w-32 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</div>
         </div>
 
-        <ul class="divide-y divide-gray-50">
-            <template x-for="menu in menus" :key="menu.id">
-                <li class="p-0">
-                    <div class="flex items-center px-6 py-4 hover:bg-teal-50/30 transition-colors group">
-                        <div class="flex-1 flex items-center font-bold text-gray-800">
-                            <i data-lucide="folder" class="w-4 h-4 mr-3 text-teal-500"></i>
-                            <span x-text="menu.name"></span>
+        <ul class="divide-y divide-gray-100" x-show="!loading">
+            <tr x-show="menus.length === 0">
+                <td colspan="5" class="p-8 text-center text-gray-400">暂无菜单数据</td>
+            </tr>
+
+            <template x-for="menu in menus" :key="menu.id || menu._id">
+                <li>
+                    <div class="flex items-center px-6 py-3 hover:bg-gray-50 transition-colors">
+                        <div class="flex-1 flex items-center font-bold text-gray-900 text-sm">
+                            <i data-lucide="folder" class="w-4 h-4 mr-2 text-indigo-400"></i>
+                            <span x-text="menu.name || menu.title"></span>
                         </div>
-                        <div class="w-48 text-sm text-gray-500 font-mono" x-text="menu.permission_code || '-'"></div>
-                        <div class="w-48 text-sm text-gray-500 font-mono" x-text="menu.path || '-'"></div>
-                        <div class="w-20 text-center text-sm font-bold text-gray-400" x-text="menu.sort_order"></div>
+                        <div class="w-48 text-xs text-gray-500 font-mono bg-gray-100 px-2 py-0.5 rounded border border-gray-200 truncate hidden md:block" x-text="menu.permission_code || '-'"></div>
+                        <div class="w-48 text-xs text-gray-500 truncate hidden lg:block" x-text="menu.path || '-'"></div>
+                        <div class="w-20 text-center text-xs text-gray-400" x-text="menu.sort_order || 0"></div>
+                        <div class="w-32 text-right">
+                            <button @click="openModal(menu)" class="text-indigo-600 hover:text-indigo-900 text-xs font-medium mr-2">编辑</button>
+                            <button @click="deleteItem(menu)" class="text-red-600 hover:text-red-900 text-xs font-medium">删除</button>
+                        </div>
                     </div>
-                    
-                    <ul class="divide-y divide-gray-50 bg-gray-50/20" x-show="menu.children && menu.children.length > 0">
-                        <template x-for="child in menu.children" :key="child.id">
-                            <div class="flex items-center px-6 py-3 pl-12 hover:bg-teal-50/30 transition-colors group">
-                                <div class="flex-1 flex items-center text-sm text-gray-700">
-                                    <i data-lucide="corner-down-right" class="w-4 h-4 mr-3 text-gray-300"></i>
-                                    <span x-text="child.name"></span>
+
+                    <ul class="divide-y divide-gray-50 bg-gray-50/50" x-show="menu.children && menu.children.length > 0">
+                        <template x-for="child in menu.children" :key="child.id || child._id">
+                            <div class="flex items-center px-6 py-2 hover:bg-gray-100 transition-colors">
+                                <div class="flex-1 flex items-center font-medium text-gray-700 text-sm pl-8 border-l-2 border-gray-200 ml-2">
+                                    <i data-lucide="file-text" class="w-3.5 h-3.5 mr-2 text-gray-400"></i>
+                                    <span x-text="child.name || child.title"></span>
                                 </div>
-                                <div class="w-48 text-xs text-gray-500 font-mono bg-gray-100 px-2 py-0.5 rounded border border-gray-200 truncate" x-text="child.permission_code"></div>
-                                <div class="w-48 text-xs text-gray-500 truncate" x-text="child.path"></div>
-                                <div class="w-20 text-center text-xs text-gray-400" x-text="child.sort_order"></div>
+                                <div class="w-48 text-xs text-gray-500 font-mono truncate hidden md:block" x-text="child.permission_code || '-'"></div>
+                                <div class="w-48 text-xs text-gray-500 truncate hidden lg:block" x-text="child.path || '-'"></div>
+                                <div class="w-20 text-center text-xs text-gray-400" x-text="child.sort_order || 0"></div>
+                                <div class="w-32 text-right">
+                                    <button @click="openModal(child)" class="text-indigo-600 hover:text-indigo-900 text-xs font-medium mr-2">编辑</button>
+                                    <button @click="deleteItem(child)" class="text-red-600 hover:text-red-900 text-xs font-medium">删除</button>
+                                </div>
                             </div>
                         </template>
                     </ul>
@@ -58,9 +86,9 @@
             </template>
         </ul>
         
-        <div class="p-6 text-center text-sm text-gray-500 bg-gray-50 border-t border-gray-100">
-            <i data-lucide="info" class="w-4 h-4 inline mr-1 -mt-0.5"></i>
-            若需调整菜单层级，请联络系统开发人员直接在后端执行 <code class="text-rose-500 bg-rose-50 px-1 rounded">python manage.py init_menus</code> 进行同步重置。
+        <div class="p-6 text-center text-sm text-gray-500 bg-blue-50 border-t border-gray-200">
+            <i data-lucide="info" class="w-4 h-4 inline mr-1 -mt-0.5 text-blue-500"></i>
+            提示：若需一键生成默认系统路由树，请联络后端管理员执行 <code class="text-rose-500 bg-white border border-rose-200 px-1.5 py-0.5 rounded shadow-sm">python manage.py init_menus</code>。
         </div>
     </div>
 
@@ -68,15 +96,41 @@
         function menuApp() {
             return {
                 menus: [],
+                loading: false,
+                toast: { show: false, message: '' },
                 
                 async initData() {
+                    this.loading = true;
                     try {
                         const res = await window.API.getAllMenus();
-                        this.menus = res.data || res.results || res || [];
+                        this.menus = res?.data?.list || res?.data || res?.results || [];
+                    } catch(e) {
+                        console.error('菜单加载失败', e);
+                    } finally {
+                        this.loading = false;
                         this.$nextTick(() => lucide.createIcons());
-                    } catch (e) {
-                        console.error('Failed to fetch menus');
                     }
+                },
+                
+                // --- 以下为兜底的基础增删逻辑实现 ---
+                openModal(menu = null) {
+                    // Modal 逻辑占位（因为侧重点是呈现和后端指令互补）
+                    alert(menu ? `功能开发中：编辑菜单 [${menu.name}]` : '功能开发中：新增菜单');
+                },
+
+                async deleteItem(menu) {
+                    if (!confirm(`确定要移除菜单 [${menu.name}] 吗？`)) return;
+                    try {
+                        await window.API.deleteMenu(menu.id || menu._id);
+                        this.showToast('菜单已移除');
+                        await this.initData();
+                    } catch(e) { alert('删除失败: ' + e.message); }
+                },
+
+                showToast(msg) {
+                    this.toast.message = msg;
+                    this.toast.show = true;
+                    setTimeout(() => { this.toast.show = false; }, 3000);
                 }
             }
         }
