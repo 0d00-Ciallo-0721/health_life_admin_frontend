@@ -6,6 +6,8 @@ const API_BASE_URL = 'http://127.0.0.1:8000/api/admin/v1';
  */
 async function request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
+    
+    // 步骤 1：从本地存储读取 access_token
     const token = localStorage.getItem('access_token');
 
     const headers = {
@@ -13,6 +15,7 @@ async function request(endpoint, options = {}) {
         ...options.headers,
     };
 
+    // 步骤 2：在 Request Header 中动态注入 Authorization
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
     }
@@ -26,15 +29,27 @@ async function request(endpoint, options = {}) {
         const response = await fetch(url, config);
         const data = await response.json();
 
-        // 拦截 401 (Token 过期或未登录)
+        // 步骤 3.1：拦截 401 (Token 过期或未登录)
         if (response.status === 401) {
             console.warn('Unauthorized. Redirecting to login...');
             localStorage.removeItem('access_token');
             localStorage.removeItem('user_info');
             
-            // ✅ 重定向逻辑修复
+            // 重定向至登录页
             window.location.href = window.location.origin + '/index.html';
             throw new Error('Unauthorized');
+        }
+
+        // 步骤 3.2：拦截 403 (无权限)
+        if (response.status === 403) {
+            console.warn('Forbidden. No permission...');
+            // 优雅降级：优先调用可能存在的全局 Toast，否则使用原生 alert
+            if (typeof window.showToast === 'function') {
+                window.showToast('权限不足，无法执行此操作', 'error');
+            } else {
+                alert('权限不足：您没有执行此操作的权限');
+            }
+            throw new Error('Forbidden: No Permission');
         }
 
         // 统一错误处理
@@ -50,7 +65,7 @@ async function request(endpoint, options = {}) {
         } else if (data !== null && typeof data === 'object') {
             const normalized = { ...data };
             
-            // 🚀 修复点：安全补充别名，绝不破坏原有嵌套！
+            // 安全补充别名，绝不破坏原有嵌套！
             if (normalized.results !== undefined) {
                 if (normalized.data === undefined) normalized.data = normalized.results;
             } else if (normalized.data !== undefined) {
@@ -78,7 +93,7 @@ window.API = {
     getMenus: () => request('/system/menus/tree/'),
     getDashboard: () => request('/dashboard/summary/'),
     
-    // 🚀 新增：获取健康大盘日志统计
+    // 获取健康大盘日志统计
     getJournalStats: () => request('/business/stats/journal/'),
 
     // 用户管理接口
@@ -98,7 +113,7 @@ window.API = {
     updateRestaurant: (id, data) => request(`/business/restaurants/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteRestaurant: (id) => request(`/business/restaurants/${id}/`, { method: 'DELETE' }),
 
-    // ================== 🚀 游戏化管理 (修正为 /game/ 前缀) ==================
+    // ================== 游戏化管理 ==================
     // 挑战任务 CRUD 接口
     getTasks: (search = '', type = '') => {
         let query = `?search=${encodeURIComponent(search)}`;
@@ -126,7 +141,6 @@ window.API = {
     createAchievement: (data) => request('/game/achievements/', { method: 'POST', body: JSON.stringify(data) }),
     updateAchievement: (id, data) => request(`/game/achievements/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteAchievement: (id) => request(`/game/achievements/${id}/`, { method: 'DELETE' }),
-    // =======================================================================
 
     // 系统操作日志与通知
     getLogs: (operator = '', module = '') => request(`/system/logs/?operator=${encodeURIComponent(operator)}&module=${encodeURIComponent(module)}`),
@@ -156,11 +170,11 @@ window.API = {
     updateMenu: (id, data) => request(`/system/menus/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteMenu: (id) => request(`/system/menus/${id}/`, { method: 'DELETE' }),
 
-    // --- 补充：社区动态审核 (MongoDB) ---
+    // 社区动态审核
     getFeeds: (search = '') => request(`/business/feeds/?search=${encodeURIComponent(search)}`),
-    deleteFeed: (id) => request(`/business/feeds/${id}/`, { method: 'DELETE' }), // 违规下架
+    deleteFeed: (id) => request(`/business/feeds/${id}/`, { method: 'DELETE' }),
 
-    // --- 补充：社区评论审核 (MongoDB) ---
+    // 社区评论审核
     getComments: (search = '') => request(`/business/comments/?search=${encodeURIComponent(search)}`),
-    deleteComment: (id) => request(`/business/comments/${id}/`, { method: 'DELETE' }), // 违规下架
+    deleteComment: (id) => request(`/business/comments/${id}/`, { method: 'DELETE' }),
 };

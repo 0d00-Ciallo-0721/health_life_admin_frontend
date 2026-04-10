@@ -7,181 +7,175 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script src="../../assets/js/config.js"></script>
+    <script src="../../assets/js/utils.js"></script>
     <script src="../../assets/js/api.js"></script>
 </head>
-<body class="bg-transparent p-2 sm:p-6 text-gray-800 font-sans" x-data="usersApp()" x-init="initUsers()">
+<body class="bg-gray-50 p-4 sm:p-8 text-gray-800 font-sans min-h-screen" x-data="usersApp()" x-init="initUsers()">
 
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-gray-200 pb-4">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900 tracking-tight">用户管理</h1>
-            <p class="text-sm text-gray-500 mt-1">查看和管理平台注册用户，控制账号状态。</p>
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                <i data-lucide="users" class="w-6 h-6 text-indigo-500"></i>
+                用户管理
+            </h1>
+            <p class="text-sm text-gray-500 mt-1">查看和管理平台注册用户，控制账号状态与权限。</p>
         </div>
 
-        <div class="relative w-full sm:w-72">
-            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
-            <input type="text" x-model="searchQuery" @keyup.debounce.500ms="fetchUsers()"
-                class="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all shadow-sm text-sm"
-                placeholder="搜索用户名或昵称...">
+        <div class="relative w-full sm:w-80 flex gap-2">
+            <div class="relative flex-1">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                <input type="text" 
+                       x-model="searchQuery" 
+                       @keydown.enter="fetchUsers()"
+                       placeholder="搜索账号或昵称..." 
+                       class="w-full pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm transition-all">
+            </div>
+            <button @click="fetchUsers()" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-sm transition-colors">
+                搜索
+            </button>
         </div>
     </div>
 
-    <div class="bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100/80 overflow-hidden relative">
-        
-        <div x-show="loading" class="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex flex-col justify-start">
-            <div class="animate-pulse flex flex-col w-full">
-                <div class="h-14 border-b border-gray-100 bg-gray-50/50"></div>
-                <template x-for="i in 5">
-                    <div class="h-16 border-b border-gray-100 w-full flex items-center px-6">
-                        <div class="w-10 h-10 bg-gray-200 rounded-full mr-4"></div>
-                        <div class="flex-1 space-y-2">
-                            <div class="h-4 bg-gray-200 rounded w-1/4"></div>
-                            <div class="h-3 bg-gray-100 rounded w-1/6"></div>
-                        </div>
-                    </div>
-                </template>
-            </div>
+    <div class="bg-white shadow-sm rounded-lg overflow-hidden border border-gray-200">
+        <div x-show="loading" class="p-12 text-center">
+            <i data-lucide="loader-2" class="w-8 h-8 text-indigo-500 animate-spin mx-auto mb-4"></i>
+            <p class="text-gray-500 text-sm">正在加载用户数据...</p>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-gray-50/50 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-100">
-                        <th class="px-6 py-4 font-semibold">用户信息</th>
-                        <th class="px-6 py-4 font-semibold">角色</th>
-                        <th class="px-6 py-4 font-semibold">健康目标</th>
-                        <th class="px-6 py-4 font-semibold">加入时间</th>
-                        <th class="px-6 py-4 font-semibold">状态</th>
-                        <th class="px-6 py-4 font-semibold text-right">操作</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
-                    
-                    <template x-for="user in users" :key="user.id">
-                        <tr class="hover:bg-gray-50/50 transition-colors group">
-                            <td class="px-6 py-4">
-                                <div class="flex items-center">
-                                    <img :src="user.avatar || `https://ui-avatars.com/api/?name=${user.username}&background=random`" 
-                                         alt="Avatar" class="w-10 h-10 rounded-full object-cover border border-gray-100 shadow-sm">
-                                    <div class="ml-4">
-                                        <div class="text-sm font-medium text-gray-900" x-text="user.nickname || user.username"></div>
-                                        <div class="text-xs text-gray-500 mt-0.5" x-text="'@' + user.username"></div>
-                                    </div>
+        <table class="min-w-full divide-y divide-gray-200" x-show="!loading">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户信息</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">角色权限</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">健康目标</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">账号状态</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">注册时间</th>
+                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                <tr x-show="users.length === 0">
+                    <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                        <i data-lucide="inbox" class="w-12 h-12 text-gray-300 mx-auto mb-3"></i>
+                        没有找到匹配的用户
+                    </td>
+                </tr>
+
+                <template x-for="user in users" :key="user.id">
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10">
+                                    <img class="h-10 w-10 rounded-full object-cover border border-gray-200" 
+                                         :src="user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nickname || user.username)}&background=random`" 
+                                         alt="Avatar">
                                 </div>
-                            </td>
-                            
-                            <td class="px-6 py-4">
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200"
-                                      x-text="user.is_superuser ? '超级管理员' : '普通用户'">
-                                </span>
-                            </td>
-
-                            <td class="px-6 py-4">
-                                <div class="flex flex-col space-y-1.5">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-600 border border-indigo-100 w-fit">
-                                        <i data-lucide="target" class="w-3 h-3 mr-1"></i>
-                                        <span x-text="user.goal_type || '未知'"></span>
-                                    </span>
-                                    <span class="inline-flex items-center text-xs text-gray-500">
-                                        <i data-lucide="droplet" class="w-3 h-3 mr-1 text-blue-400 fill-blue-100"></i>
-                                        <span x-text="(user.water_goal_cups || 8) + ' 杯/天'"></span>
-                                    </span>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900" x-text="user.nickname || '未设置昵称'"></div>
+                                    <div class="text-sm text-gray-500" x-text="'@' + user.username"></div>
                                 </div>
-                            </td>
-
-                            <td class="px-6 py-4">
-                                <div class="text-sm text-gray-600" x-text="formatDate(user.date_joined)"></div>
-                            </td>
-
-                            <td class="px-6 py-4">
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
-                                      :class="user.is_active 
-                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
-                                        : 'bg-red-50 text-red-600 border-red-200'">
-                                    <span class="w-1.5 h-1.5 rounded-full mr-1.5"
-                                          :class="user.is_active ? 'bg-emerald-500' : 'bg-red-500'"></span>
-                                    <span x-text="user.is_active ? '正常' : '已封禁'"></span>
-                                </span>
-                            </td>
-
-                            <td class="px-6 py-4 text-right">
-                                <template x-if="!user.is_superuser">
-                                    <button @click="toggleStatus(user)"
-                                            class="inline-flex items-center justify-center p-2 rounded-lg transition-colors focus:outline-none"
-                                            :class="user.is_active ? 'text-gray-400 hover:text-red-600 hover:bg-red-50' : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'"
-                                            :title="user.is_active ? '封禁账号' : '解封账号'">
-                                        <i :data-lucide="user.is_active ? 'ban' : 'check-circle'" class="w-4 h-4"></i>
-                                    </button>
-                                </template>
-                            </td>
-                        </tr>
-                    </template>
-
-                    <tr x-show="!loading && users.length === 0">
-                        <td colspan="6" class="px-6 py-16 text-center">
-                            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-50 mb-4">
-                                <i data-lucide="inbox" class="w-8 h-8 text-gray-400"></i>
                             </div>
-                            <h3 class="text-sm font-medium text-gray-900">未找到用户</h3>
-                            <p class="mt-1 text-sm text-gray-500">尝试调整搜索关键词。</p>
+                        </td>
+                        
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex flex-wrap gap-1">
+                                <template x-if="!user.roles || user.roles.length === 0">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-600">普通用户</span>
+                                </template>
+                                <template x-for="role in user.roles" :key="role">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                                          :class="role === 'super_admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'"
+                                          x-text="role === 'super_admin' ? '超级管理员' : role">
+                                    </span>
+                                </template>
+                            </div>
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <div x-text="user.goal_type || '-'"></div>
+                            <div class="text-xs text-blue-500 mt-0.5" x-show="user.water_goal_cups" x-text="`日饮水: ${user.water_goal_cups}杯`"></div>
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full"
+                                  :class="user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+                                <span class="w-1.5 h-1.5 rounded-full mr-1.5 self-center" :class="user.is_active ? 'bg-green-500' : 'bg-red-500'"></span>
+                                <span x-text="user.is_active ? '正常' : '已封禁'"></span>
+                            </span>
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="formatDate(user.date_joined)"></td>
+
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button @click="toggleStatus(user)" 
+                                    class="inline-flex items-center px-3 py-1.5 border shadow-sm text-xs font-medium rounded-md focus:outline-none transition-colors"
+                                    :class="user.is_active ? 'border-red-200 text-red-700 bg-red-50 hover:bg-red-100' : 'border-green-200 text-green-700 bg-green-50 hover:bg-green-100'">
+                                <i :data-lucide="user.is_active ? 'ban' : 'check-circle'" class="w-3.5 h-3.5 mr-1.5"></i>
+                                <span x-text="user.is_active ? '封禁账号' : '解封账号'"></span>
+                            </button>
                         </td>
                     </tr>
-
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500 bg-gray-50/30">
-            <span>共 <span class="font-medium text-gray-900" x-text="users.length"></span> 条记录</span>
-            <div class="space-x-1">
-                <button class="px-3 py-1 rounded-md bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-50">上一页</button>
-                <button class="px-3 py-1 rounded-md bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-50">下一页</button>
-            </div>
-        </div>
+                </template>
+            </tbody>
+        </table>
     </div>
 
     <script>
         function usersApp() {
             return {
                 users: [],
-                loading: true,
+                loading: false,
                 searchQuery: '',
 
                 async initUsers() {
                     await this.fetchUsers();
                 },
 
+                // Task 1: 列表拉取与解析
                 async fetchUsers() {
                     this.loading = true;
                     try {
-                        const response = await window.API.getUsers(this.searchQuery);
-                        const resData = response.data || response;
-                        this.users = resData.results || resData.list || resData || [];
+                        const payload = await window.API.getUsers(this.searchQuery);
+                        // 数据归一化解析：兼容可能存在的 {data: {list}} 或直接返回数组的情况
+                        const list = payload?.data?.list || payload?.data || payload?.results || [];
+                        this.users = list;
                     } catch (error) {
-                        console.error('获取用户失败:', error);
-                        // Mock 演示数据
-                        this.users = [
-                            { id: 1, username: 'admin_test', nickname: '测试人员', is_superuser: false, is_active: true, date_joined: '2023-10-01T12:00:00Z', goal_type: '减脂', water_goal_cups: 10 }
-                        ];
+                        console.error('获取用户列表失败:', error);
+                        alert('获取用户列表失败: ' + (error.message || '未知错误'));
                     } finally {
                         this.loading = false;
+                        // 重新渲染 Lucide 图标
                         this.$nextTick(() => lucide.createIcons());
                     }
                 },
 
+                // Task 2: 状态切换与安全防护
                 async toggleStatus(user) {
                     const action = user.is_active ? '封禁' : '解封';
-                    if (!confirm(`确定要${action}用户 "${user.username}" 吗？`)) return;
+                    
+                    // 步骤 2：二次确认拦截
+                    if (!confirm(`确定要${action}用户 [${user.nickname || user.username}] 吗？此操作将立即生效。`)) return;
 
                     try {
+                        // 步骤 3：调用 POST /business/users/{id}/toggle_status/
                         await window.API.toggleUserStatus(user.id);
-                        user.is_active = !user.is_active;
-                        this.$nextTick(() => lucide.createIcons());
+                        
+                        // 步骤 4：成功后重新拉取列表以确保状态同步（或直接做乐观更新）
+                        await this.fetchUsers(); 
+                        
+                        // 补充 Success Toast 逻辑
+                        if (typeof window.showToast === 'function') {
+                            window.showToast(`${action}操作成功`, 'success');
+                        }
                     } catch (error) {
                         console.error('状态修改失败:', error);
                         alert(error.message || '操作失败');
                     }
                 },
 
+                // 辅助函数：时间格式化
                 formatDate(dateString) {
                     if (!dateString) return '-';
                     const date = new Date(dateString);
