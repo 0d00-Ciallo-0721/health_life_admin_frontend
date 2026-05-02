@@ -93,26 +93,21 @@
                         <p class="text-xs text-gray-400 mt-1 text-right" x-text="`${journalStats.water_stats?.completed_users || 0} 人已达标`"></p>
                     </div>
 
-                    <div>
-                        <div class="flex justify-between text-sm mb-1">
-                            <span class="text-gray-600 font-medium flex items-center"><i data-lucide="flame" class="w-4 h-4 text-orange-500 mr-1.5"></i>饮食记录率</span>
-                            <span class="font-bold text-gray-900" x-text="`${journalStats.calorie_stats?.logging_rate_pct || 0}%`"></span>
+                    <div class="rounded-xl border border-orange-100 bg-orange-50/70 p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-gray-700 font-medium flex items-center"><i data-lucide="utensils-crossed" class="w-4 h-4 text-orange-500 mr-1.5"></i>饮食记录概览</span>
+                            <span class="text-lg font-bold text-gray-900" x-text="journalStats.intake_stats?.total_records || 0"></span>
                         </div>
-                        <div class="w-full bg-gray-100 rounded-full h-2">
-                            <div class="bg-orange-500 h-2 rounded-full" :style="`width: ${journalStats.calorie_stats?.logging_rate_pct || 0}%`"></div>
+                        <div class="grid grid-cols-2 gap-3 text-xs text-gray-500">
+                            <div class="rounded-lg bg-white/70 px-3 py-2 border border-orange-100">
+                                记录用户
+                                <div class="mt-1 text-sm font-semibold text-gray-900" x-text="`${journalStats.intake_stats?.total_users_logged || 0} 人`"></div>
+                            </div>
+                            <div class="rounded-lg bg-white/70 px-3 py-2 border border-orange-100">
+                                人均记录
+                                <div class="mt-1 text-sm font-semibold text-gray-900" x-text="`${journalStats.intake_stats?.avg_records_per_user || 0} 条`"></div>
+                            </div>
                         </div>
-                        <p class="text-xs text-gray-400 mt-1 text-right" x-text="`累计摄入 ${journalStats.calorie_stats?.total_intake_kcal || 0} kcal`"></p>
-                    </div>
-
-                    <div>
-                        <div class="flex justify-between text-sm mb-1">
-                            <span class="text-gray-600 font-medium flex items-center"><i data-lucide="activity" class="w-4 h-4 text-emerald-500 mr-1.5"></i>运动达标率</span>
-                            <span class="font-bold text-gray-900" x-text="`${journalStats.workout_stats?.completion_rate_pct || 0}%`"></span>
-                        </div>
-                        <div class="w-full bg-gray-100 rounded-full h-2">
-                            <div class="bg-emerald-500 h-2 rounded-full" :style="`width: ${journalStats.workout_stats?.completion_rate_pct || 0}%`"></div>
-                        </div>
-                        <p class="text-xs text-gray-400 mt-1 text-right" x-text="`累计消耗 ${journalStats.workout_stats?.total_burned_kcal || 0} kcal`"></p>
                     </div>
                 </div>
             </div>
@@ -125,7 +120,7 @@
                 loading: true,
                 chartInstance: null,
                 summaryData: { cards: [], trend: [] },
-                journalStats: { water_stats: {}, calorie_stats: {}, workout_stats: {} },
+                journalStats: { water_stats: {}, intake_stats: {} },
 
                 async initDashboard() {
                     this.loading = true;
@@ -149,8 +144,7 @@
                             const statData = statRes.data || statRes || {};
                             this.journalStats = {
                                 water_stats: statData.water_stats || {},
-                                calorie_stats: statData.calorie_stats || {},
-                                workout_stats: statData.workout_stats || {}
+                                intake_stats: statData.intake_stats || {}
                             };
                         }
 
@@ -241,8 +235,9 @@
                     if (Object.keys(this.journalStats.water_stats || {}).length === 0) {
                         this.journalStats.water_stats = { completion_rate_pct: 0, completed_users: 0 };
                     }
-                    // 移除对未在文档中定义的 calorie_stats 和 workout_stats 的兜底
-                    // UI 层已通过 ?. 和 || 0 避免 undefined 错误
+                    if (Object.keys(this.journalStats.intake_stats || {}).length === 0) {
+                        this.journalStats.intake_stats = { total_users_logged: 0, total_records: 0, avg_records_per_user: 0 };
+                    }
                 }
             }
         }

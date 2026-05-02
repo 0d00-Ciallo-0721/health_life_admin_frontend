@@ -1,7 +1,9 @@
 // 全局配置文件
+// 后端始终运行在本机 127.0.0.1:8000，无需区分本地/公网
 window.APP_CONFIG = {
-    // API 基础路径
+    // API 基础路径（后端本地服务，始终指向本机）
     API_BASE_URL: 'http://127.0.0.1:8000/api/admin/v1',
+
     // 默认回退头像
     DEFAULT_AVATAR: 'https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff',
     // 系统名称

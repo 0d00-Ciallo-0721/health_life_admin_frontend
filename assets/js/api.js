@@ -1,5 +1,5 @@
 // 全局 API 配置
-const API_BASE_URL = 'http://127.0.0.1:8000/api/admin/v1';
+const API_BASE_URL = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) || 'http://127.0.0.1:8000/api/admin/v1';
 
 /**
  * 核心 Fetch 封装
